@@ -3,9 +3,9 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 const Stack = createNativeStackNavigator();
 
-import Login from '../components/login';
-import Register from '../components/register';
-import Welcome from '../components/welcome';
+import LoginScreen from '../components/login';
+import RegisterScreen from '../components/register';
+import WelcomeScreen from '../components/welcome';
 
 export default function Routes() {
   return (
@@ -15,9 +15,9 @@ export default function Routes() {
         HeaderBackVisible: false,
         headerLeft: () => null,
       }}>
-  <Stack.Screen name="Welcome" component={Welcome} />
-  <Stack.Screen name="Login" component={Login} />
-  <Stack.Screen name="Register" component={Register} />
+  <Stack.Screen name="Welcome" component={WelcomeScreen} />
+  <Stack.Screen name="Login" component={LoginScreen} />
+  <Stack.Screen name="Register" component={RegisterScreen} />
     </Stack.Navigator>
   );
 }
