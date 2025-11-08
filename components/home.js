@@ -1,9 +1,11 @@
 import React, { useState, useRef } from 'react';
 import { View, Text, Image, TouchableOpacity, Dimensions, Animated, PanResponder } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient'; // <-- 1. IMPORTAR
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const demoMatches = [
+  // ... (tus datos de demoMatches)
   { 
     id: '1', 
     name: 'Ana', 
@@ -126,6 +128,7 @@ export default function TinderSwipeScreen() {
     if (index !== currentIndex) {
       if (index === (currentIndex + 1) % demoMatches.length) {
         return (
+          // --- ESTA ES LA TARJETA "SIGUIENTE" ---
           <Animated.View
             key={item.id}
             style={{
@@ -133,12 +136,14 @@ export default function TinderSwipeScreen() {
               width: SCREEN_WIDTH - 32,
               height: SCREEN_HEIGHT - 200,
               transform: [{ scale: 0.95 }],
+              zIndex: 1, // <-- 2. AÑADIR zIndex 1
             }}
           >
             <View style={{
               flex: 1,
               borderRadius: 20,
               overflow: 'hidden',
+              backgroundColor: '#f5f5f5',
             }}>
               <Image
                 source={{ uri: item.image }}
@@ -152,9 +157,12 @@ export default function TinderSwipeScreen() {
       return null;
     }
 
+    const currentItem = demoMatches[currentIndex];
+
+    // --- ESTA ES LA TARJETA "ACTUAL" (LA QUE SE SWIPEA) ---
     return (
       <Animated.View
-        key={item.id}
+        key={currentItem.id}
         style={{
           position: 'absolute',
           width: SCREEN_WIDTH - 32,
@@ -164,6 +172,7 @@ export default function TinderSwipeScreen() {
             { translateY: position.y },
             { rotate: rotation },
           ],
+          zIndex: 2, // <-- 3. AÑADIR zIndex 2
         }}
         {...panResponder.panHandlers}
       >
@@ -171,13 +180,15 @@ export default function TinderSwipeScreen() {
           flex: 1,
           borderRadius: 20,
           overflow: 'hidden',
+          backgroundColor: '#f5f5f5',
+          shadowColor: '#000',
           shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.3,
+          shadowOpacity: 0.1,
           shadowRadius: 10,
           elevation: 5,
         }}>
           <Image
-            source={{ uri: item.image }}
+            source={{ uri: currentItem.image }}
             style={{ width: '100%', height: '100%' }}
             resizeMode="cover"
           />
@@ -224,21 +235,24 @@ export default function TinderSwipeScreen() {
             }}>LIKE</Text>
           </Animated.View>
 
-          {/* Profile Info */}
-          <View style={{
-            position: 'absolute',
-            bottom: 0,
-            left: 0,
-            right: 0,
-            padding: 24,
-          }}>
+          {/* Profile Info --> 4. REEMPLAZAR <View> CON <LinearGradient> */}
+          <LinearGradient
+            colors={['transparent', 'rgba(0,0,0,0.7)', 'rgba(0,0,0,0.9)']}
+            style={{
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              padding: 24,
+            }}
+          >
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
               <Text style={{
                 fontSize: 34,
                 fontWeight: '700',
                 color: '#fff',
               }}>
-                {item.name}
+                {currentItem.name}
               </Text>
               <Text style={{
                 fontSize: 28,
@@ -246,12 +260,12 @@ export default function TinderSwipeScreen() {
                 color: '#fff',
                 marginLeft: 8,
               }}>
-                {item.age}
+                {currentItem.age}
               </Text>
             </View>
             
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-              <Text style={{ fontSize: 16, color: '#fff', opacity: 0.9 }}>📍 A {item.distance} de distancia</Text>
+              <Text style={{ fontSize: 16, color: '#fff', opacity: 0.9 }}>📍 A {currentItem.distance} de distancia</Text>
             </View>
 
             <Text style={{
@@ -260,18 +274,19 @@ export default function TinderSwipeScreen() {
               marginBottom: 8,
               lineHeight: 22,
             }}>
-              {item.bio}
+              {currentItem.bio}
             </Text>
 
             <View style={{ gap: 6 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text style={{ fontSize: 16, color: '#fff', opacity: 0.9 }}>💼 {item.work}</Text>
+                <Text style={{ fontSize: 16, color: '#fff', opacity: 0.9 }}>💼 {currentItem.work}</Text>
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text style={{ fontSize: 16, color: '#fff', opacity: 0.9 }}>🎓 {item.school}</Text>
+                <Text style={{ fontSize: 16, color: '#fff', opacity: 0.9 }}>🎓 {currentItem.school}</Text>
               </View>
             </View>
-          </View>
+          </LinearGradient>
+          
         </View>
       </Animated.View>
     );
@@ -280,7 +295,7 @@ export default function TinderSwipeScreen() {
   return (
     <View style={{
       flex: 1,
-      backgroundColor: '#000',
+      backgroundColor: '#fff',
     }}>
       {/* Header */}
       <View style={{
@@ -292,14 +307,14 @@ export default function TinderSwipeScreen() {
         paddingBottom: 16,
       }}>
         <Image
-          source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/7/74/Tinder_Logomark_White.png' }}
+          source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/74/Tinder_Logomark_2020.svg/512px-Tinder_Logomark_2020.svg.png' }}
           style={{ width: 40, height: 40 }}
           resizeMode="contain"
         />
         <View style={{ flexDirection: 'row', gap: 16 }}>
-          <View style={{ width: 40, height: 40, backgroundColor: '#2a2a2a', borderRadius: 20 }} />
-          <View style={{ width: 40, height: 40, backgroundColor: '#2a2a2a', borderRadius: 20 }} />
-          <View style={{ width: 40, height: 40, backgroundColor: '#2a2a2a', borderRadius: 20 }} />
+          <View style={{ width: 40, height: 40, backgroundColor: '#f0f0f0', borderRadius: 20 }} />
+          <View style={{ width: 40, height: 40, backgroundColor: '#f0f0f0', borderRadius: 20 }} />
+          <View style={{ width: 40, height: 40, backgroundColor: '#f0f0f0', borderRadius: 20 }} />
         </View>
       </View>
 
@@ -310,6 +325,9 @@ export default function TinderSwipeScreen() {
         justifyContent: 'center',
         paddingHorizontal: 16,
       }}>
+        {/* El mapeo simple funciona ahora porque el zIndex 
+          controla el apilamiento, no el orden de renderizado.
+        */}
         {demoMatches.map((item, index) => renderCard(item, index))}
       </View>
 
@@ -327,9 +345,14 @@ export default function TinderSwipeScreen() {
             width: 50,
             height: 50,
             borderRadius: 25,
-            backgroundColor: '#2a2a2a',
+            backgroundColor: '#fff',
             justifyContent: 'center',
             alignItems: 'center',
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 4,
+            elevation: 3,
           }}
         >
           <Text style={{ fontSize: 24, color: '#ffc629' }}>↺</Text>
@@ -341,9 +364,14 @@ export default function TinderSwipeScreen() {
             width: 60,
             height: 60,
             borderRadius: 30,
-            backgroundColor: '#2a2a2a',
+            backgroundColor: '#fff',
             justifyContent: 'center',
             alignItems: 'center',
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 4,
+            elevation: 3,
           }}
         >
           <Text style={{ fontSize: 32, color: '#ff006f' }}>✕</Text>
@@ -355,9 +383,14 @@ export default function TinderSwipeScreen() {
             width: 50,
             height: 50,
             borderRadius: 25,
-            backgroundColor: '#2a2a2a',
+            backgroundColor: '#fff',
             justifyContent: 'center',
             alignItems: 'center',
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 4,
+            elevation: 3,
           }}
         >
           <Text style={{ fontSize: 24, color: '#00d4ff' }}>★</Text>
@@ -369,9 +402,14 @@ export default function TinderSwipeScreen() {
             width: 60,
             height: 60,
             borderRadius: 30,
-            backgroundColor: '#2a2a2a',
+            backgroundColor: '#fff',
             justifyContent: 'center',
             alignItems: 'center',
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 4,
+            elevation: 3,
           }}
         >
           <Text style={{ fontSize: 32, color: '#00eda6' }}>♥</Text>
@@ -382,9 +420,14 @@ export default function TinderSwipeScreen() {
             width: 50,
             height: 50,
             borderRadius: 25,
-            backgroundColor: '#2a2a2a',
+            backgroundColor: '#fff',
             justifyContent: 'center',
             alignItems: 'center',
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 4,
+            elevation: 3,
           }}
         >
           <Text style={{ fontSize: 24, color: '#9b59ff' }}>⚡</Text>
