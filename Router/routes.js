@@ -6,6 +6,7 @@ const Stack = createNativeStackNavigator();
 import LoginScreen from '../components/login';
 import RegisterScreen from '../components/register';
 import WelcomeScreen from '../components/welcome';
+import MainTabs from './mainTabs';
 
 export default function Routes() {
   return (
@@ -18,6 +19,7 @@ export default function Routes() {
   <Stack.Screen name="Welcome" component={WelcomeScreen} />
   <Stack.Screen name="Login" component={LoginScreen} />
   <Stack.Screen name="Register" component={RegisterScreen} />
+  <Stack.Screen name="Main" component={MainTabs} />
     </Stack.Navigator>
   );
 }
