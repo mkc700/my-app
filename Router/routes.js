@@ -1,5 +1,6 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 const Stack = createNativeStackNavigator();
 
@@ -12,7 +13,8 @@ import ChatPerfil from '../components/ChatPerfil';
 
 export default function Routes() {
   return (
-    <Stack.Navigator
+    <SafeAreaProvider>
+      <Stack.Navigator
       screenOptions={{
         headerShown: false,
         HeaderBackVisible: false,
@@ -42,6 +44,7 @@ export default function Routes() {
         }}
       />
     </Stack.Navigator>
+    </SafeAreaProvider>
   );
 }
 

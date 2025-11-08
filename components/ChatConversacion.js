@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRoute } from '@react-navigation/native';
 
 // Mensajes de ejemplo
@@ -20,6 +21,7 @@ const demoMessages = [
 
 export default function ChatConversacion() {
   const route = useRoute();
+  const insets = useSafeAreaInsets();
   const { name } = route.params;
   const [mensaje, setMensaje] = useState('');
   const [messages, setMessages] = useState(demoMessages);
@@ -48,10 +50,12 @@ export default function ChatConversacion() {
   );
 
   return (
-    <KeyboardAvoidingView 
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      style={styles.container}
-    >
+    <SafeAreaView style={styles.container} edges={['bottom']}>
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
+        style={{ flex: 1 }}
+      >
       <View style={styles.header}>
         <Text style={styles.headerText}>{name}</Text>
       </View>
@@ -80,6 +84,7 @@ export default function ChatConversacion() {
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
@@ -130,6 +135,8 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#e1e2e6',
     backgroundColor: '#fff',
+    paddingBottom: Platform.OS === 'android' ? 16 : 16, // Ajuste para Android
+    marginBottom: Platform.OS === 'android' ? 8 : 0, // Espacio extra para Android
   },
   input: {
     flex: 1,
