@@ -33,7 +33,7 @@ const styles = StyleSheet.create({
         fontSize: 24,
         fontWeight: 'bold',
         marginBottom: 40,
-        color: '#ff4458', // Color rojo de Tinder
+        color: '#b5ba63ff', // Color rojo de Tinder
     },
     buttonContainer: {
         width: '100%',
