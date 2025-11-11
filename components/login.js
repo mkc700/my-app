@@ -10,20 +10,21 @@ import {
     Platform,
     Alert,
 } from 'react-native';
+// credenciales con firebase
+import appFirebase from '../credenciales';
+import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
 
 export default function LoginScreen({ navigation }) {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
 
-    const handleLogin = () => {
-        if (!email || !password) {
-            Alert.alert('Error', 'Por favor completa todos los campos');
-            return;
+    const handleLogin = async() => {
+        try {
+            await signInWithEmailAndPassword(getAuth(appFirebase), email, password);
+            navigation.navigate('Main'); // Navegar a la pantalla principal después del inicio de sesión
+        }catch (error) {
+            Alert.alert('Error de inicio de sesión', error.message);
         }
-
-            // Aquí iría la lógica de autenticación real
-            // Para la demo, redirigimos a la pantalla principal con bottom tabs
-            navigation.replace('Main');
     };
 
     return (
@@ -47,7 +48,8 @@ export default function LoginScreen({ navigation }) {
                         keyboardType="email-address"
                         autoCapitalize="none"
                         value={email}
-                        onChangeText={setEmail}
+                        // la manera de trabajar los parametros del correo para el async
+                        onChangeText={(text)=>setEmail(text)}
                         placeholderTextColor="#9aa0a6"
                     />
 
@@ -56,10 +58,11 @@ export default function LoginScreen({ navigation }) {
                         placeholder="Contraseña"
                         secureTextEntry
                         value={password}
-                        onChangeText={setPassword}
+                        // la manera de trabajar los parametros de la constraseña para el async
+                        onChangeText={(text)=>setPassword(text)}
                         placeholderTextColor="#9aa0a6"
                     />
-
+                    
                     <TouchableOpacity style={styles.button} onPress={handleLogin}>
                         <Text style={styles.buttonText}>Iniciar sesión</Text>
                     </TouchableOpacity>
