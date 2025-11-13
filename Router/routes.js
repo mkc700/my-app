@@ -10,6 +10,8 @@ import WelcomeScreen from '../components/welcome';
 import MainTabs from './mainTabs';
 import ChatConversacion from '../components/ChatConversacion';
 import ChatPerfil from '../components/ChatPerfil';
+import EditProfileScreen from '../components/EditProfile';
+import FriendRequestsScreen from '../components/FriendRequests';
 
 export default function Routes() {
   return (
@@ -24,6 +26,26 @@ export default function Routes() {
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="Register" component={RegisterScreen} />
       <Stack.Screen name="Main" component={MainTabs} />
+      <Stack.Screen
+        name="EditProfile"
+        component={EditProfileScreen}
+        options={{
+          headerShown: true,
+          headerBackVisible: true,
+          headerLeft: undefined,
+          title: 'Editar Perfil'
+        }}
+      />
+      <Stack.Screen
+        name="FriendRequests"
+        component={FriendRequestsScreen}
+        options={{
+          headerShown: true,
+          headerBackVisible: true,
+          headerLeft: undefined,
+          title: 'Solicitudes'
+        }}
+      />
       <Stack.Screen 
         name="ChatConversacion" 
         component={ChatConversacion}
@@ -47,4 +69,3 @@ export default function Routes() {
     </SafeAreaProvider>
   );
 }
-

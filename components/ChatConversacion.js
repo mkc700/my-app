@@ -1,90 +1,113 @@
-import React, { useState } from 'react';
-import {
-  StyleSheet,
-  View,
-  Text,
-  FlatList,
-  TextInput,
-  TouchableOpacity,
-  KeyboardAvoidingView,
-  Platform,
-} from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, StyleSheet } from 'react-native';
+import { GiftedChat, Send, InputToolbar } from 'react-native-gifted-chat';
 import { useRoute } from '@react-navigation/native';
-
-// Mensajes de ejemplo
-const demoMessages = [
-  { id: '1', text: 'Hola, ¿cómo estás?', sender: 'them', timestamp: '10:00' },
-  { id: '2', text: '¡Hola! Muy bien, ¿y tú?', sender: 'me', timestamp: '10:01' },
-  { id: '3', text: 'Todo bien, gracias', sender: 'them', timestamp: '10:02' },
-];
+import { useUser } from './UserContext';
+import { sendMessage, getChatMessages } from './FriendService';
 
 export default function ChatConversacion() {
   const route = useRoute();
-  const insets = useSafeAreaInsets();
-  const { name } = route.params;
-  const [mensaje, setMensaje] = useState('');
-  const [messages, setMessages] = useState(demoMessages);
+  const { user } = useUser();
+  const { chatId, friendName, friendId } = route.params;
 
-  const enviarMensaje = () => {
-    if (mensaje.trim().length > 0) {
-      const newMessage = {
-        id: Date.now().toString(),
-        text: mensaje,
-        sender: 'me',
-        timestamp: new Date().toLocaleTimeString().slice(0, 5),
-      };
-      setMessages([...messages, newMessage]);
-      setMensaje('');
+  const [messages, setMessages] = useState([]);
+
+  useEffect(() => {
+    if (!user || !chatId) return;
+
+    // Load existing messages
+    const unsubscribe = getChatMessages(chatId, (messagesData) => {
+      // Convert Firebase messages to GiftedChat format
+      const giftedChatMessages = messagesData.map(msg => ({
+        _id: msg.id,
+        text: msg.text,
+        createdAt: msg.timestamp?.toDate() || new Date(msg.timestamp),
+        user: {
+          _id: msg.senderId,
+          name: msg.senderId === user.uid ? 'Tú' : friendName,
+        },
+      }));
+
+      // Sort messages by timestamp (most recent first for GiftedChat)
+      giftedChatMessages.sort((a, b) => b.createdAt - a.createdAt);
+
+      setMessages(giftedChatMessages);
+    });
+
+    return unsubscribe;
+  }, [user, chatId, friendName]);
+
+  const onSend = useCallback(async (messagesToSend = []) => {
+    if (!user || messagesToSend.length === 0) return;
+
+    const message = messagesToSend[0];
+
+    try {
+      // Send message to Firebase
+      await sendMessage(chatId, user.uid, message.text);
+
+      // Add message to local state immediately for better UX
+      setMessages(previousMessages =>
+        GiftedChat.append(previousMessages, messagesToSend)
+      );
+    } catch (error) {
+      console.error('Error sending message:', error);
+      // You could show an error alert here
     }
+  }, [user, chatId]);
+
+  const renderSend = (props) => {
+    return (
+      <Send {...props}>
+        <View style={styles.sendButton}>
+          <View style={styles.sendIcon} />
+        </View>
+      </Send>
+    );
   };
 
-  const renderMessage = ({ item }) => (
-    <View style={[
-      styles.messageContainer,
-      item.sender === 'me' ? styles.myMessage : styles.theirMessage
-    ]}>
-      <Text style={styles.messageText}>{item.text}</Text>
-      <Text style={styles.timestamp}>{item.timestamp}</Text>
-    </View>
-  );
+  const renderInputToolbar = (props) => {
+    return (
+      <InputToolbar
+        {...props}
+        containerStyle={styles.inputToolbar}
+        primaryStyle={styles.inputPrimary}
+      />
+    );
+  };
+
+  if (!user) {
+    return <View style={styles.container} />;
+  }
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
-        style={{ flex: 1 }}
-      >
-      <View style={styles.header}>
-        <Text style={styles.headerText}>{name}</Text>
-      </View>
-      
-      <FlatList
-        data={messages}
-        keyExtractor={(item) => item.id}
-        renderItem={renderMessage}
-        contentContainerStyle={styles.messagesList}
-        inverted={false}
+    <View style={styles.container}>
+      <GiftedChat
+        messages={messages}
+        onSend={onSend}
+        user={{
+          _id: user.uid,
+        }}
+        placeholder="Escribe un mensaje..."
+        showAvatarForEveryMessage={false}
+        renderSend={renderSend}
+        renderInputToolbar={renderInputToolbar}
+        messagesContainerStyle={styles.messagesContainer}
+        textInputStyle={styles.textInput}
+        scrollToBottomStyle={styles.scrollToBottom}
+        alwaysShowSend
+        renderUsernameOnMessage={false}
+        // Custom styling
+        textStyle={{
+          right: { color: '#fff' },
+          left: { color: '#333' },
+        }}
+        wrapperStyle={{
+          right: { backgroundColor: '#ff4458' },
+          left: { backgroundColor: '#f0f0f0' },
+        }}
       />
-
-      <View style={styles.inputContainer}>
-        <TextInput
-          style={styles.input}
-          value={mensaje}
-          onChangeText={setMensaje}
-          placeholder="Escribe un mensaje..."
-          multiline
-        />
-        <TouchableOpacity 
-          style={styles.sendButton}
-          onPress={enviarMensaje}
-        >
-          <Text style={styles.sendButtonText}>Enviar</Text>
-        </TouchableOpacity>
-      </View>
-    </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -93,70 +116,51 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
   },
-  header: {
-    padding: 16,
-    backgroundColor: '#f6f7fb',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e1e2e6',
-  },
-  headerText: {
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  messagesList: {
-    padding: 16,
-  },
-  messageContainer: {
-    maxWidth: '80%',
-    marginVertical: 4,
-    padding: 12,
-    borderRadius: 16,
-  },
-  myMessage: {
-    alignSelf: 'flex-end',
-    backgroundColor: '#007AFF',
-  },
-  theirMessage: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#E9ECEF',
-  },
-  messageText: {
-    color: '#fff',
-    fontSize: 16,
-  },
-  timestamp: {
-    fontSize: 12,
-    color: '#rgba(255,255,255,0.7)',
-    marginTop: 4,
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#e1e2e6',
-    backgroundColor: '#fff',
-    paddingBottom: Platform.OS === 'android' ? 16 : 16, // Ajuste para Android
-    marginBottom: Platform.OS === 'android' ? 8 : 0, // Espacio extra para Android
-  },
-  input: {
-    flex: 1,
-    backgroundColor: '#f6f7fb',
+  sendButton: {
+    width: 40,
+    height: 40,
     borderRadius: 20,
+    backgroundColor: '#ff4458',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+    marginBottom: 8,
+  },
+  sendIcon: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 12,
+    borderRightWidth: 0,
+    borderTopWidth: 8,
+    borderBottomWidth: 8,
+    borderLeftColor: '#fff',
+    borderTopColor: 'transparent',
+    borderBottomColor: 'transparent',
+    marginLeft: 2,
+  },
+  inputToolbar: {
+    backgroundColor: '#fff',
+    borderTopColor: '#e1e2e6',
+    borderTopWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+  },
+  inputPrimary: {
+    alignItems: 'center',
+  },
+  messagesContainer: {
+    backgroundColor: '#fff',
+  },
+  textInput: {
+    backgroundColor: '#f8f9fb',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#e6e9ee',
     paddingHorizontal: 16,
     paddingVertical: 8,
-    marginRight: 8,
-    fontSize: 16,
+    marginHorizontal: 8,
   },
-  sendButton: {
-    backgroundColor: '#007AFF',
-    borderRadius: 20,
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    justifyContent: 'center',
-  },
-  sendButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+  scrollToBottom: {
+    backgroundColor: '#ff4458',
   },
 });

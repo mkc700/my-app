@@ -1,44 +1,20 @@
-import React, { useState, useRef } from 'react';
-import { View, Text, Image, TouchableOpacity, Dimensions, Animated, PanResponder } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient'; // <-- 1. IMPORTAR
+import React, { useState, useRef, useEffect } from 'react';
+import { View, Text, Image, TouchableOpacity, Dimensions, Animated, PanResponder, Alert, ActivityIndicator } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { collection, getDocs, query, limit, where } from 'firebase/firestore';
+import { db } from '../firebase.js';
+import { useUser } from './UserContext';
+import { sendFriendRequest } from './FriendService';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-const demoMatches = [
-  // ... (tus datos de demoMatches)
-  { 
-    id: '1', 
-    name: 'Ana', 
-    age: 25, 
-    distance: '2 km', 
-    bio: 'Me encanta viajar y probar nuevos restaurantes 🌍✈️',
-    work: 'Diseñadora en Spotify',
-    school: 'UNAM',
-    image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400' 
-  },
-  { 
-    id: '2', 
-    name: 'Carlos', 
-    age: 28, 
-    distance: '5 km', 
-    bio: 'Fotógrafo profesional | Amante de los perros 🐕📷',
-    work: 'Fotógrafo Freelance',
-    school: 'Tec de Monterrey',
-    image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400' 
-  },
-  { 
-    id: '3', 
-    name: 'María', 
-    age: 24, 
-    distance: '1 km', 
-    bio: 'Coffee addict ☕ | Yoga lover 🧘‍♀️',
-    work: 'Marketing Manager',
-    school: 'Universidad Panamericana',
-    image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400' 
-  },
-];
+// Default profile image
+const DEFAULT_PROFILE_IMAGE = 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400';
 
 export default function TinderSwipeScreen() {
+  const { user } = useUser();
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
   const position = useRef(new Animated.ValueXY()).current;
   const rotation = position.x.interpolate({
@@ -59,6 +35,35 @@ export default function TinderSwipeScreen() {
     extrapolate: 'clamp',
   });
 
+  // Load users from Firestore
+  useEffect(() => {
+    const loadUsers = async () => {
+      if (!user) return;
+
+      try {
+        const usersRef = collection(db, 'users');
+        const q = query(usersRef, limit(50)); // Load up to 50 users
+        const querySnapshot = await getDocs(q);
+
+        const loadedUsers = [];
+        querySnapshot.forEach((doc) => {
+          if (doc.id !== user.uid) { // Don't show current user
+            loadedUsers.push({ uid: doc.id, ...doc.data() });
+          }
+        });
+
+        setUsers(loadedUsers);
+      } catch (error) {
+        console.error('Error loading users:', error);
+        Alert.alert('Error', 'No se pudieron cargar los usuarios');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadUsers();
+  }, [user]);
+
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
@@ -77,7 +82,19 @@ export default function TinderSwipeScreen() {
     })
   ).current;
 
-  const swipeRight = () => {
+  const swipeRight = async () => {
+    // Send friend request to the current user
+    const currentUser = users[currentIndex];
+    if (currentUser && user) {
+      try {
+        await sendFriendRequest(user.uid, currentUser.uid);
+        Alert.alert('¡Solicitud enviada!', `Has enviado una solicitud de amistad a ${currentUser.displayName || 'este usuario'}`);
+      } catch (error) {
+        console.error('Error sending friend request:', error);
+        Alert.alert('Error', 'No se pudo enviar la solicitud de amistad');
+      }
+    }
+
     Animated.timing(position, {
       toValue: { x: SCREEN_WIDTH + 100, y: 0 },
       duration: 300,
@@ -106,12 +123,12 @@ export default function TinderSwipeScreen() {
 
   const nextCard = () => {
     position.setValue({ x: 0, y: 0 });
-    setCurrentIndex((currentIndex + 1) % demoMatches.length);
+    setCurrentIndex((currentIndex + 1) % users.length);
   };
 
   const handleUndo = () => {
     position.setValue({ x: 0, y: 0 });
-    setCurrentIndex((currentIndex - 1 + demoMatches.length) % demoMatches.length);
+    setCurrentIndex((currentIndex - 1 + users.length) % users.length);
   };
 
   const handleSuperLike = () => {
@@ -126,11 +143,11 @@ export default function TinderSwipeScreen() {
 
   const renderCard = (item, index) => {
     if (index !== currentIndex) {
-      if (index === (currentIndex + 1) % demoMatches.length) {
+      if (index === (currentIndex + 1) % users.length) {
         return (
           // --- ESTA ES LA TARJETA "SIGUIENTE" ---
           <Animated.View
-            key={item.id}
+            key={item.uid}
             style={{
               position: 'absolute',
               width: SCREEN_WIDTH - 32,
@@ -146,7 +163,7 @@ export default function TinderSwipeScreen() {
               backgroundColor: '#f5f5f5',
             }}>
               <Image
-                source={{ uri: item.image }}
+                source={{ uri: item.photos?.[0] || DEFAULT_PROFILE_IMAGE }}
                 style={{ width: '100%', height: '100%' }}
                 resizeMode="cover"
               />
@@ -157,12 +174,12 @@ export default function TinderSwipeScreen() {
       return null;
     }
 
-    const currentItem = demoMatches[currentIndex];
+    const currentItem = users[currentIndex];
 
     // --- ESTA ES LA TARJETA "ACTUAL" (LA QUE SE SWIPEA) ---
     return (
       <Animated.View
-        key={currentItem.id}
+        key={currentItem.uid}
         style={{
           position: 'absolute',
           width: SCREEN_WIDTH - 32,
@@ -188,11 +205,11 @@ export default function TinderSwipeScreen() {
           elevation: 5,
         }}>
           <Image
-            source={{ uri: currentItem.image }}
+            source={{ uri: currentItem.photos?.[0] || DEFAULT_PROFILE_IMAGE }}
             style={{ width: '100%', height: '100%' }}
             resizeMode="cover"
           />
-          
+
           {/* NOPE Label */}
           <Animated.View
             style={{
@@ -232,7 +249,7 @@ export default function TinderSwipeScreen() {
               fontSize: 32,
               fontWeight: '800',
               color: '#00eda6',
-            }}>LIKE</Text>
+            }}>SOLICITUD</Text>
           </Animated.View>
 
           {/* Profile Info --> 4. REEMPLAZAR <View> CON <LinearGradient> */}
@@ -252,41 +269,51 @@ export default function TinderSwipeScreen() {
                 fontWeight: '700',
                 color: '#fff',
               }}>
-                {currentItem.name}
+                {currentItem.displayName || 'Usuario'}
               </Text>
-              <Text style={{
-                fontSize: 28,
-                fontWeight: '400',
-                color: '#fff',
-                marginLeft: 8,
-              }}>
-                {currentItem.age}
-              </Text>
-            </View>
-            
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-              <Text style={{ fontSize: 16, color: '#fff', opacity: 0.9 }}>📍 A {currentItem.distance} de distancia</Text>
+              {currentItem.age && (
+                <Text style={{
+                  fontSize: 28,
+                  fontWeight: '400',
+                  color: '#fff',
+                  marginLeft: 8,
+                }}>
+                  {currentItem.age}
+                </Text>
+              )}
             </View>
 
-            <Text style={{
-              fontSize: 16,
-              color: '#fff',
-              marginBottom: 8,
-              lineHeight: 22,
-            }}>
-              {currentItem.bio}
-            </Text>
+            {currentItem.location && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                <Text style={{ fontSize: 16, color: '#fff', opacity: 0.9 }}>📍 {currentItem.location}</Text>
+              </View>
+            )}
+
+            {currentItem.bio && (
+              <Text style={{
+                fontSize: 16,
+                color: '#fff',
+                marginBottom: 8,
+                lineHeight: 22,
+              }}>
+                {currentItem.bio}
+              </Text>
+            )}
 
             <View style={{ gap: 6 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text style={{ fontSize: 16, color: '#fff', opacity: 0.9 }}>💼 {currentItem.work}</Text>
-              </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text style={{ fontSize: 16, color: '#fff', opacity: 0.9 }}>🎓 {currentItem.school}</Text>
-              </View>
+              {currentItem.work && (
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={{ fontSize: 16, color: '#fff', opacity: 0.9 }}>💼 {currentItem.work}</Text>
+                </View>
+              )}
+              {currentItem.school && (
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={{ fontSize: 16, color: '#fff', opacity: 0.9 }}>🎓 {currentItem.school}</Text>
+                </View>
+              )}
             </View>
           </LinearGradient>
-          
+
         </View>
       </Animated.View>
     );
@@ -325,10 +352,18 @@ export default function TinderSwipeScreen() {
         justifyContent: 'center',
         paddingHorizontal: 16,
       }}>
-        {/* El mapeo simple funciona ahora porque el zIndex 
-          controla el apilamiento, no el orden de renderizado.
-        */}
-        {demoMatches.map((item, index) => renderCard(item, index))}
+        {loading ? (
+          <ActivityIndicator size="large" color="#ff4458" />
+        ) : users.length === 0 ? (
+          <Text style={{ fontSize: 18, color: '#666', textAlign: 'center' }}>
+            No hay usuarios disponibles en este momento
+          </Text>
+        ) : (
+          /* El mapeo simple funciona ahora porque el zIndex
+            controla el apilamiento, no el orden de renderizado.
+          */
+          users.map((item, index) => renderCard(item, index))
+        )}
       </View>
 
       {/* Action Buttons */}

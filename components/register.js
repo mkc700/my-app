@@ -10,6 +10,9 @@ import {
     Platform,
     Alert,
 } from 'react-native';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
+import { auth, db } from '../firebase.js';
 
 export default function RegisterScreen({ navigation }) {
     const [name, setName] = useState('');
@@ -17,7 +20,7 @@ export default function RegisterScreen({ navigation }) {
     const [password, setPassword] = useState('');
     const [confirm, setConfirm] = useState('');
 
-    const handleRegister = () => {
+    const handleRegister = async () => {
         if (!name || !email || !password || !confirm) {
             Alert.alert('Error', 'Por favor completa todos los campos');
             return;
@@ -27,9 +30,44 @@ export default function RegisterScreen({ navigation }) {
             return;
         }
 
-        // Lógica de registro demo
-        Alert.alert('Registro', `Cuenta creada para ${name} (${email})`);
-        // navigation.navigate('Login');
+        try {
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            const user = userCredential.user;
+
+            // Create user profile in Firestore
+            const userProfile = {
+                uid: user.uid,
+                email: user.email,
+                displayName: name,
+                bio: '',
+                age: '',
+                work: '',
+                school: '',
+                location: '',
+                photos: [],
+                interests: [],
+                createdAt: new Date(),
+                updatedAt: new Date(),
+            };
+
+            await setDoc(doc(db, 'users', user.uid), userProfile);
+
+            Alert.alert('¡Éxito!', 'Cuenta creada exitosamente');
+            navigation.navigate('Main'); // Navigate directly to main app
+        } catch (error) {
+            console.error('Error al registrar:', error);
+            let errorMessage = 'Ocurrió un error al crear la cuenta';
+
+            if (error.code === 'auth/email-already-in-use') {
+                errorMessage = 'Este correo electrónico ya está registrado';
+            } else if (error.code === 'auth/invalid-email') {
+                errorMessage = 'Correo electrónico inválido';
+            } else if (error.code === 'auth/weak-password') {
+                errorMessage = 'La contraseña debe tener al menos 6 caracteres';
+            }
+
+            Alert.alert('Error', errorMessage);
+        }
     };
 
     return (
