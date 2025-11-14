@@ -1,19 +1,32 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Text, Alert } from 'react-native';
 import { GiftedChat, Send, InputToolbar } from 'react-native-gifted-chat';
-import { useRoute } from '@react-navigation/native';
+import { useRoute, useNavigation } from '@react-navigation/native';
 import { useUser } from './UserContext';
-import { sendMessage, getChatMessages } from './FriendService';
+import { sendMessage, getChatMessages, createChat, deleteChatMessages, getChatMessageCount } from './FriendService';
 
 export default function ChatConversacion() {
   const route = useRoute();
+  const navigation = useNavigation();
   const { user } = useUser();
   const { chatId, friendName, friendId } = route.params;
 
   const [messages, setMessages] = useState([]);
+  const [messageCount, setMessageCount] = useState(0);
 
   useEffect(() => {
     if (!user || !chatId) return;
+
+    // Create chat if it doesn't exist
+    const initializeChat = async () => {
+      try {
+        await createChat([user.uid, friendId]);
+      } catch (error) {
+        console.error('Error initializing chat:', error);
+      }
+    };
+
+    initializeChat();
 
     // Load existing messages
     const unsubscribe = getChatMessages(chatId, (messagesData) => {
@@ -32,10 +45,11 @@ export default function ChatConversacion() {
       giftedChatMessages.sort((a, b) => b.createdAt - a.createdAt);
 
       setMessages(giftedChatMessages);
+      setMessageCount(giftedChatMessages.length);
     });
 
     return unsubscribe;
-  }, [user, chatId, friendName]);
+  }, [user, chatId, friendName, friendId]);
 
   const onSend = useCallback(async (messagesToSend = []) => {
     if (!user || messagesToSend.length === 0) return;
@@ -75,6 +89,48 @@ export default function ChatConversacion() {
       />
     );
   };
+
+  const handleDeleteChat = async () => {
+    Alert.alert(
+      'Eliminar conversación',
+      `¿Estás seguro de que deseas eliminar todos los mensajes? (${messageCount} mensajes)\n\nEsta acción no se puede deshacer.`,
+      [
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+        },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteChatMessages(chatId);
+              Alert.alert('Éxito', 'La conversación ha sido eliminada.');
+            } catch (error) {
+              console.error('Error deleting chat:', error);
+              Alert.alert('Error', 'No se pudo eliminar la conversación.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  React.useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity
+          onPress={handleDeleteChat}
+          style={styles.deleteButton}
+          disabled={messageCount === 0}
+        >
+          <Text style={[styles.deleteButtonText, messageCount === 0 && styles.deleteButtonDisabled]}>
+            🗑️ Eliminar ({messageCount})
+          </Text>
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, messageCount]);
 
   if (!user) {
     return <View style={styles.container} />;
@@ -162,5 +218,20 @@ const styles = StyleSheet.create({
   },
   scrollToBottom: {
     backgroundColor: '#ff4458',
+  },
+  deleteButton: {
+    marginRight: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: '#ffe6e6',
+  },
+  deleteButtonText: {
+    color: '#ff4458',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  deleteButtonDisabled: {
+    opacity: 0.4,
   },
 });

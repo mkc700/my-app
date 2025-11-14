@@ -253,6 +253,54 @@ export const markMessagesAsRead = async (chatId, userId) => {
   }
 };
 
+// Delete all messages from a chat
+export const deleteChatMessages = async (chatId) => {
+  try {
+    const q = query(
+      collection(db, 'messages'),
+      where('chatId', '==', chatId)
+    );
+
+    const querySnapshot = await getDocs(q);
+    const deletePromises = [];
+
+    querySnapshot.forEach((doc) => {
+      deletePromises.push(deleteDoc(doc.ref));
+    });
+
+    await Promise.all(deletePromises);
+
+    // Update chat to reset last message
+    const chatRef = doc(db, 'chats', chatId);
+    await updateDoc(chatRef, {
+      lastMessage: null,
+      lastMessageTime: null,
+      lastMessageSender: null,
+    });
+
+    return true;
+  } catch (error) {
+    console.error('Error deleting chat messages:', error);
+    throw error;
+  }
+};
+
+// Get message count for a chat
+export const getChatMessageCount = async (chatId) => {
+  try {
+    const q = query(
+      collection(db, 'messages'),
+      where('chatId', '==', chatId)
+    );
+
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.size;
+  } catch (error) {
+    console.error('Error getting message count:', error);
+    throw error;
+  }
+};
+
 // User search function
 export const searchUsers = async (searchTerm, currentUserId, limitCount = 20) => {
   try {

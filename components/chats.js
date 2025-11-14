@@ -13,7 +13,6 @@ export default function ChatsScreen() {
   const { user } = useUser();
   const [friends, setFriends] = useState([]);
   const [chats, setChats] = useState([]);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!user) return;
@@ -22,7 +21,6 @@ export default function ChatsScreen() {
     const unsubscribeFriends = getFriends(user.uid, async (friendIds) => {
       if (friendIds.length === 0) {
         setFriends([]);
-        setLoading(false);
         return;
       }
 
@@ -47,7 +45,6 @@ export default function ChatsScreen() {
     // Load chats
     const unsubscribeChats = getUserChats(user.uid, (chatsData) => {
       setChats(chatsData);
-      setLoading(false);
     });
 
     return () => {
@@ -128,15 +125,6 @@ export default function ChatsScreen() {
       </TouchableOpacity>
     );
   };
-
-  if (loading) {
-    return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color="#ff4458" />
-        <Text style={{ marginTop: 16, color: '#666' }}>Cargando amigos...</Text>
-      </View>
-    );
-  }
 
   return (
     <View style={styles.container}>
