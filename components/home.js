@@ -40,7 +40,7 @@ export default function TinderSwipeScreen() {
       if (!user) return;
 
       try {
-        const { data, error } = await db.getUsers(50); // Load up to 50 users
+        const { data, error } = await db.getUsers(1); // Load up to 50 users
 
         if (error) {
           throw error;
