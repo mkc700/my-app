@@ -10,20 +10,50 @@ import {
     Platform,
     Alert,
 } from 'react-native';
-// credenciales con firebase
-import appFirebase from '../credenciales';
-import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '../supabase.js';
 
 export default function LoginScreen({ navigation }) {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [loading, setLoading] = useState(false);
 
     const handleLogin = async() => {
+        if (!email || !password) {
+            Alert.alert('Error', 'Por favor completa todos los campos');
+            return;
+        }
+
+        setLoading(true);
         try {
-            await signInWithEmailAndPassword(getAuth(appFirebase), email, password);
-            navigation.navigate('Main'); // Navegar a la pantalla principal después del inicio de sesión
-        }catch (error) {
-            Alert.alert('Error de inicio de sesión', error.message);
+            console.log('Intentando login con:', email);
+            const { data, error } = await auth.signIn({ email, password });
+
+            if (error) {
+                console.error('Error de Supabase:', error);
+                throw error;
+            }
+
+            console.log('Login exitoso:', data);
+            // No navegamos manualmente, el UserContext debería detectar el cambio
+            Alert.alert('¡Éxito!', 'Iniciando sesión...');
+
+        } catch (error) {
+            console.error('Error completo de login:', error);
+            let errorMessage = 'Correo o contraseña incorrectos';
+
+            if (error.message?.includes('Invalid login credentials') || error.message?.includes('invalid_credentials')) {
+                errorMessage = 'Correo o contraseña incorrectos';
+            } else if (error.message?.includes('Email not confirmed')) {
+                errorMessage = 'Por favor confirma tu correo electrónico';
+            } else if (error.message?.includes('Too many requests')) {
+                errorMessage = 'Demasiados intentos. Intenta más tarde';
+            } else if (error.message) {
+                errorMessage = error.message;
+            }
+
+            Alert.alert('Error de inicio de sesión', errorMessage);
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -63,8 +93,14 @@ export default function LoginScreen({ navigation }) {
                         placeholderTextColor="#9aa0a6"
                     />
                     
-                    <TouchableOpacity style={styles.button} onPress={handleLogin}>
-                        <Text style={styles.buttonText}>Iniciar sesión</Text>
+                    <TouchableOpacity
+                        style={[styles.button, loading && styles.disabledButton]}
+                        onPress={handleLogin}
+                        disabled={loading}
+                    >
+                        <Text style={styles.buttonText}>
+                            {loading ? 'Iniciando sesión...' : 'Iniciar sesión'}
+                        </Text>
                     </TouchableOpacity>
 
                     <View style={styles.row}>
@@ -170,5 +206,8 @@ const styles = StyleSheet.create({
         color: '#8a8f96',
         textAlign: 'center',
         marginTop: 12,
+    },
+    disabledButton: {
+        opacity: 0.6,
     },
 });

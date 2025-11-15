@@ -14,10 +14,7 @@ import {
   getPendingFriendRequests,
   acceptFriendRequest,
   rejectFriendRequest,
-  getUserById
 } from './FriendService';
-import { collection, getDocs, query, where } from 'firebase/firestore';
-import { db } from '../firebase.js';
 
 const DEFAULT_PROFILE_IMAGE = 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400';
 
@@ -30,42 +27,18 @@ export default function FriendRequestsScreen({ navigation }) {
   useEffect(() => {
     if (!user) return;
 
-    const unsubscribe = getPendingFriendRequests(user.uid, (requestsData) => {
-      // Load sender details for each request
-      const loadRequestsWithDetails = async () => {
-        const requestsWithDetails = await Promise.all(
-          requestsData.map(async (request) => {
-            try {
-              const usersRef = collection(db, 'users');
-              const q = query(usersRef, where('__name__', '==', request.fromUserId));
-              const querySnapshot = await getDocs(q);
-
-              let senderData = null;
-              querySnapshot.forEach((doc) => {
-                senderData = { uid: doc.id, ...doc.data() };
-              });
-
-              return {
-                ...request,
-                sender: senderData,
-              };
-            } catch (error) {
-              console.error('Error loading sender data:', error);
-              return {
-                ...request,
-                sender: null,
-              };
-            }
-          })
-        );
-        setRequests(requestsWithDetails);
+    const loadRequests = async () => {
+      try {
+        const requestsData = await getPendingFriendRequests(user.id);
+        setRequests(requestsData);
+      } catch (error) {
+        console.error('Error loading friend requests:', error);
+      } finally {
         setLoading(false);
-      };
+      }
+    };
 
-      loadRequestsWithDetails();
-    });
-
-    return unsubscribe;
+    loadRequests();
   }, [user]);
 
   const handleAccept = async (requestId) => {
@@ -129,8 +102,8 @@ export default function FriendRequestsScreen({ navigation }) {
               {item.sender?.displayName || 'Usuario desconocido'}
             </Text>
             <Text style={styles.requestTime}>
-              {item.createdAt?.toDate ?
-                item.createdAt.toDate().toLocaleDateString() :
+              {item.created_at ?
+                new Date(item.created_at).toLocaleDateString() :
                 'Fecha desconocida'
               }
             </Text>

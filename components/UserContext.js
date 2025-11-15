@@ -1,7 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
-import { auth, db } from '../firebase.js';
+import { auth, db } from '../supabase.js';
 
 const UserContext = createContext();
 
@@ -19,22 +17,25 @@ export const UserProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        setUser(firebaseUser);
+    console.log('UserContext: Setting up auth listener');
+    const { data: { subscription } } = auth.onAuthStateChange((event, session) => {
+      console.log('UserContext: Auth state changed:', event, !!session?.user);
 
-        // Load user profile from Firestore
-        try {
-          const userDocRef = doc(db, 'users', firebaseUser.uid);
-          const userDocSnap = await getDoc(userDocRef);
+      if (session?.user) {
+        console.log('UserContext: User authenticated:', session.user.email);
+        setUser(session.user);
 
-          if (userDocSnap.exists()) {
-            setUserProfile(userDocSnap.data());
+        // Load user profile from Supabase asynchronously
+        db.getUser(session.user.id).then(({ data: profile, error }) => {
+          if (profile && !error) {
+            console.log('UserContext: Profile loaded:', profile.displayName);
+            setUserProfile(profile);
           } else {
+            console.log('UserContext: Creating default profile');
             // Create default profile if it doesn't exist
             const defaultProfile = {
-              uid: firebaseUser.uid,
-              email: firebaseUser.email,
+              uid: session.user.id,
+              email: session.user.email,
               displayName: '',
               bio: '',
               age: '',
@@ -43,38 +44,46 @@ export const UserProvider = ({ children }) => {
               location: '',
               photos: [],
               interests: [],
-              createdAt: new Date(),
-              updatedAt: new Date(),
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
             };
 
-            await setDoc(userDocRef, defaultProfile);
-            setUserProfile(defaultProfile);
+            db.setUser(session.user.id, defaultProfile).then(() => {
+              setUserProfile(defaultProfile);
+            }).catch(error => {
+              console.error('UserContext: Error creating profile:', error);
+            });
           }
-        } catch (error) {
-          console.error('Error loading user profile:', error);
-        }
+        }).catch(error => {
+          console.error('UserContext: Error loading user profile:', error);
+        });
       } else {
+        console.log('UserContext: User logged out');
         setUser(null);
         setUserProfile(null);
       }
       setLoading(false);
     });
 
-    return unsubscribe;
+    return () => subscription.unsubscribe();
   }, []);
 
   const updateProfile = async (updates) => {
     if (!user) return;
 
     try {
-      const userDocRef = doc(db, 'users', user.uid);
       const updatedProfile = {
         ...userProfile,
         ...updates,
-        updatedAt: new Date(),
+        updatedAt: new Date().toISOString(),
       };
 
-      await updateDoc(userDocRef, updatedProfile);
+      const { error } = await db.updateUser(user.id, updatedProfile);
+
+      if (error) {
+        throw error;
+      }
+
       setUserProfile(updatedProfile);
     } catch (error) {
       console.error('Error updating profile:', error);

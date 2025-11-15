@@ -1,8 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, Image, TouchableOpacity, Dimensions, Animated, PanResponder, Alert, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { collection, getDocs, query, limit, where } from 'firebase/firestore';
-import { db } from '../firebase.js';
+import { db } from '../supabase.js';
 import { useUser } from './UserContext';
 import { sendFriendRequest } from './FriendService';
 
@@ -35,23 +34,30 @@ export default function TinderSwipeScreen() {
     extrapolate: 'clamp',
   });
 
-  // Load users from Firestore
+  // Load users from Supabase
   useEffect(() => {
     const loadUsers = async () => {
       if (!user) return;
 
       try {
-        const usersRef = collection(db, 'users');
-        const q = query(usersRef, limit(50)); // Load up to 50 users
-        const querySnapshot = await getDocs(q);
+        const { data, error } = await db.getUsers(50); // Load up to 50 users
+
+        if (error) {
+          throw error;
+        }
+
+        console.log('Current user id:', user.id);
+        console.log('Users data:', data);
 
         const loadedUsers = [];
-        querySnapshot.forEach((doc) => {
-          if (doc.id !== user.uid) { // Don't show current user
-            loadedUsers.push({ uid: doc.id, ...doc.data() });
+        data.forEach((userData) => {
+          console.log('Checking user:', userData.uid, 'vs current:', user.id);
+          if (userData.uid !== user.id && userData.uid) { // Don't show current user
+            loadedUsers.push(userData);
           }
         });
 
+        console.log('Loaded users:', loadedUsers);
         setUsers(loadedUsers);
       } catch (error) {
         console.error('Error loading users:', error);
@@ -87,7 +93,7 @@ export default function TinderSwipeScreen() {
     const currentUser = users[currentIndex];
     if (currentUser && user) {
       try {
-        await sendFriendRequest(user.uid, currentUser.uid);
+        await sendFriendRequest(user.id, currentUser.uid);
         Alert.alert('¡Solicitud enviada!', `Has enviado una solicitud de amistad a ${currentUser.displayName || 'este usuario'}`);
       } catch (error) {
         console.error('Error sending friend request:', error);

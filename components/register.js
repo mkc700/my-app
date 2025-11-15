@@ -10,9 +10,7 @@ import {
     Platform,
     Alert,
 } from 'react-native';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
-import { auth, db } from '../firebase.js';
+import { auth, db } from '../supabase.js';
 
 export default function RegisterScreen({ navigation }) {
     const [name, setName] = useState('');
@@ -31,12 +29,17 @@ export default function RegisterScreen({ navigation }) {
         }
 
         try {
-            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            const user = userCredential.user;
+            const { data, error } = await auth.signUp({ email, password });
 
-            // Create user profile in Firestore
+            if (error) {
+                throw error;
+            }
+
+            const user = data.user;
+
+            // Create user profile in Supabase
             const userProfile = {
-                uid: user.uid,
+                uid: user.id,
                 email: user.email,
                 displayName: name,
                 bio: '',
@@ -46,27 +49,37 @@ export default function RegisterScreen({ navigation }) {
                 location: '',
                 photos: [],
                 interests: [],
-                createdAt: new Date(),
-                updatedAt: new Date(),
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
             };
 
-            await setDoc(doc(db, 'users', user.uid), userProfile);
+            const { error: profileError } = await db.setUser(user.id, userProfile);
 
-            Alert.alert('¡Éxito!', 'Cuenta creada exitosamente');
-            navigation.navigate('Main'); // Navigate directly to main app
+            if (profileError) {
+                throw profileError;
+            }
+
+            Alert.alert('¡Cuenta creada!', 'Bienvenido a Tinder TEC', [
+                {
+                    text: 'Continuar',
+                    onPress: () => navigation.navigate('Welcome')
+                }
+            ]);
         } catch (error) {
             console.error('Error al registrar:', error);
             let errorMessage = 'Ocurrió un error al crear la cuenta';
 
-            if (error.code === 'auth/email-already-in-use') {
+            if (error.message?.includes('already registered') || error.message?.includes('already been registered')) {
                 errorMessage = 'Este correo electrónico ya está registrado';
-            } else if (error.code === 'auth/invalid-email') {
+            } else if (error.message?.includes('Invalid email') || error.message?.includes('invalid email')) {
                 errorMessage = 'Correo electrónico inválido';
-            } else if (error.code === 'auth/weak-password') {
+            } else if (error.message?.includes('Password') || error.message?.includes('password')) {
                 errorMessage = 'La contraseña debe tener al menos 6 caracteres';
+            } else if (error.message?.includes('signup is disabled')) {
+                errorMessage = 'El registro está temporalmente deshabilitado';
             }
 
-            Alert.alert('Error', errorMessage);
+            Alert.alert('Error de registro', errorMessage);
         }
     };
 

@@ -1,39 +1,34 @@
-import {
-  collection,
-  doc,
-  setDoc,
-  getDoc,
-  getDocs,
-  updateDoc,
-  query,
-  where,
-  onSnapshot,
-  deleteDoc,
-  addDoc,
-  orderBy,
-  limit
-} from 'firebase/firestore';
-import { db } from '../firebase.js';
+import { supabase } from '../supabase.js';
 
 // Friend Request Functions
 export const sendFriendRequest = async (fromUserId, toUserId) => {
   try {
     // Check if request already exists
-    const existingRequest = await getFriendRequest(fromUserId, toUserId);
+    const { data: existingRequest } = await supabase
+      .from('friend_requests')
+      .select('*')
+      .or(`and(sender_id.eq.${fromUserId},receiver_id.eq.${toUserId}),and(sender_id.eq.${toUserId},receiver_id.eq.${fromUserId})`)
+      .eq('status', 'pending')
+      .single();
+
     if (existingRequest) {
       throw new Error('Friend request already exists');
     }
 
-    const requestId = `${fromUserId}_${toUserId}`;
-    await setDoc(doc(db, 'friendRequests', requestId), {
-      fromUserId,
-      toUserId,
-      status: 'pending',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
+    const { data, error } = await supabase
+      .from('friend_requests')
+      .insert({
+        sender_id: fromUserId,
+        receiver_id: toUserId,
+        status: 'pending',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .select()
+      .single();
 
-    return requestId;
+    if (error) throw error;
+    return data.id;
   } catch (error) {
     console.error('Error sending friend request:', error);
     throw error;
@@ -42,34 +37,31 @@ export const sendFriendRequest = async (fromUserId, toUserId) => {
 
 export const getFriendRequest = async (fromUserId, toUserId) => {
   try {
-    const requestId = `${fromUserId}_${toUserId}`;
-    const docSnap = await getDoc(doc(db, 'friendRequests', requestId));
-    return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } : null;
+    const { data, error } = await supabase
+      .from('friend_requests')
+      .select('*')
+      .or(`and(sender_id.eq.${fromUserId},receiver_id.eq.${toUserId}),and(sender_id.eq.${toUserId},receiver_id.eq.${fromUserId})`)
+      .eq('status', 'pending')
+      .single();
+
+    return data;
   } catch (error) {
     console.error('Error getting friend request:', error);
-    throw error;
+    return null;
   }
 };
 
 export const acceptFriendRequest = async (requestId) => {
   try {
-    const requestRef = doc(db, 'friendRequests', requestId);
-    await updateDoc(requestRef, {
-      status: 'accepted',
-      updatedAt: new Date(),
-    });
+    const { error } = await supabase
+      .from('friend_requests')
+      .update({
+        status: 'accepted',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', requestId);
 
-    // Add to friends collection
-    const request = await getDoc(requestRef);
-    if (request.exists()) {
-      const { fromUserId, toUserId } = request.data();
-      const friendshipId = [fromUserId, toUserId].sort().join('_');
-
-      await setDoc(doc(db, 'friends', friendshipId), {
-        users: [fromUserId, toUserId],
-        createdAt: new Date(),
-      });
-    }
+    if (error) throw error;
   } catch (error) {
     console.error('Error accepting friend request:', error);
     throw error;
@@ -78,66 +70,63 @@ export const acceptFriendRequest = async (requestId) => {
 
 export const rejectFriendRequest = async (requestId) => {
   try {
-    await updateDoc(doc(db, 'friendRequests', requestId), {
-      status: 'rejected',
-      updatedAt: new Date(),
-    });
+    const { error } = await supabase
+      .from('friend_requests')
+      .update({
+        status: 'rejected',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', requestId);
+
+    if (error) throw error;
   } catch (error) {
     console.error('Error rejecting friend request:', error);
     throw error;
   }
 };
 
-export const getPendingFriendRequests = (userId, callback) => {
-  const q = query(
-    collection(db, 'friendRequests'),
-    where('toUserId', '==', userId),
-    where('status', '==', 'pending')
-  );
+// Simplified functions for basic functionality
+export const getPendingFriendRequests = async (userId) => {
+  try {
+    const { data, error } = await supabase
+      .from('friend_requests')
+      .select(`
+        *,
+        sender:users!friend_requests_sender_id_fkey(*),
+        receiver:users!friend_requests_receiver_id_fkey(*)
+      `)
+      .eq('receiver_id', userId)
+      .eq('status', 'pending');
 
-  return onSnapshot(q, (querySnapshot) => {
-    const requests = [];
-    querySnapshot.forEach((doc) => {
-      requests.push({ id: doc.id, ...doc.data() });
-    });
-    callback(requests);
-  });
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error getting pending friend requests:', error);
+    return [];
+  }
 };
 
-export const getSentFriendRequests = (userId, callback) => {
-  const q = query(
-    collection(db, 'friendRequests'),
-    where('fromUserId', '==', userId),
-    where('status', '==', 'pending')
-  );
+export const getSentFriendRequests = async (userId) => {
+  try {
+    const { data, error } = await supabase
+      .from('friend_requests')
+      .select(`
+        *,
+        sender:users!friend_requests_sender_id_fkey(*),
+        receiver:users!friend_requests_receiver_id_fkey(*)
+      `)
+      .eq('sender_id', userId)
+      .eq('status', 'pending');
 
-  return onSnapshot(q, (querySnapshot) => {
-    const requests = [];
-    querySnapshot.forEach((doc) => {
-      requests.push({ id: doc.id, ...doc.data() });
-    });
-    callback(requests);
-  });
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error getting sent friend requests:', error);
+    return [];
+  }
 };
 
-export const getFriends = (userId, callback) => {
-  const q = query(
-    collection(db, 'friends'),
-    where('users', 'array-contains', userId)
-  );
-
-  return onSnapshot(q, (querySnapshot) => {
-    const friends = [];
-    querySnapshot.forEach((doc) => {
-      const friendship = doc.data();
-      const friendId = friendship.users.find(id => id !== userId);
-      friends.push(friendId);
-    });
-    callback(friends);
-  });
-};
-
-// Chat Functions
+// Chat Functions (simplified)
 export const createChat = async (participants) => {
   try {
     // Sort participants for consistent chat ID
@@ -145,16 +134,22 @@ export const createChat = async (participants) => {
     const chatId = sortedParticipants.join('_');
 
     // Check if chat already exists
-    const chatRef = doc(db, 'chats', chatId);
-    const chatSnap = await getDoc(chatRef);
+    const { data: existingChat } = await supabase
+      .from('chats')
+      .select('*')
+      .eq('id', chatId)
+      .single();
 
-    if (!chatSnap.exists()) {
-      await setDoc(chatRef, {
-        participants: sortedParticipants,
-        createdAt: new Date(),
-        lastMessage: null,
-        lastMessageTime: null,
-      });
+    if (!existingChat) {
+      const { error } = await supabase
+        .from('chats')
+        .insert({
+          id: chatId,
+          participants: sortedParticipants,
+          created_at: new Date().toISOString(),
+        });
+
+      if (error) throw error;
     }
 
     return chatId;
@@ -166,165 +161,84 @@ export const createChat = async (participants) => {
 
 export const sendMessage = async (chatId, senderId, messageText, messageType = 'text') => {
   try {
-    const messageData = {
-      chatId,
-      senderId,
-      text: messageText,
-      type: messageType,
-      timestamp: new Date(),
-      readBy: [senderId], // Mark as read by sender
-    };
+    const { data, error } = await supabase
+      .from('messages')
+      .insert({
+        chat_id: chatId,
+        sender_id: senderId,
+        text: messageText,
+        type: messageType,
+        timestamp: new Date().toISOString(),
+        read_by: [senderId],
+      })
+      .select()
+      .single();
 
-    const messageRef = await addDoc(collection(db, 'messages'), messageData);
+    if (error) throw error;
 
     // Update chat's last message
-    await updateDoc(doc(db, 'chats', chatId), {
-      lastMessage: messageText,
-      lastMessageTime: new Date(),
-      lastMessageSender: senderId,
-    });
+    await supabase
+      .from('chats')
+      .update({
+        last_message: messageText,
+        last_message_time: new Date().toISOString(),
+        last_message_sender: senderId,
+      })
+      .eq('id', chatId);
 
-    return messageRef.id;
+    return data.id;
   } catch (error) {
     console.error('Error sending message:', error);
     throw error;
   }
 };
 
-export const getChatMessages = (chatId, callback) => {
-  const q = query(
-    collection(db, 'messages'),
-    where('chatId', '==', chatId),
-    orderBy('timestamp', 'asc')
-  );
-
-  return onSnapshot(q, (querySnapshot) => {
-    const messages = [];
-    querySnapshot.forEach((doc) => {
-      messages.push({ id: doc.id, ...doc.data() });
-    });
-    callback(messages);
-  });
-};
-
-export const getUserChats = (userId, callback) => {
-  const q = query(
-    collection(db, 'chats'),
-    where('participants', 'array-contains', userId),
-    orderBy('lastMessageTime', 'desc')
-  );
-
-  return onSnapshot(q, (querySnapshot) => {
-    const chats = [];
-    querySnapshot.forEach((doc) => {
-      chats.push({ id: doc.id, ...doc.data() });
-    });
-    callback(chats);
-  });
-};
-
-export const markMessagesAsRead = async (chatId, userId) => {
+export const getChatMessages = async (chatId) => {
   try {
-    const q = query(
-      collection(db, 'messages'),
-      where('chatId', '==', chatId),
-      where('readBy', 'not-in', [userId])
-    );
+    const { data, error } = await supabase
+      .from('messages')
+      .select('*')
+      .eq('chat_id', chatId)
+      .order('timestamp', { ascending: true });
 
-    const querySnapshot = await getDocs(q);
-    const updatePromises = [];
-
-    querySnapshot.forEach((doc) => {
-      const messageRef = doc.ref;
-      const currentReadBy = doc.data().readBy || [];
-      if (!currentReadBy.includes(userId)) {
-        updatePromises.push(
-          updateDoc(messageRef, {
-            readBy: [...currentReadBy, userId],
-          })
-        );
-      }
-    });
-
-    await Promise.all(updatePromises);
+    if (error) throw error;
+    return data || [];
   } catch (error) {
-    console.error('Error marking messages as read:', error);
-    throw error;
+    console.error('Error getting chat messages:', error);
+    return [];
   }
 };
 
-// Delete all messages from a chat
-export const deleteChatMessages = async (chatId) => {
+export const getUserChats = async (userId) => {
   try {
-    const q = query(
-      collection(db, 'messages'),
-      where('chatId', '==', chatId)
-    );
+    const { data, error } = await supabase
+      .from('chats')
+      .select('*')
+      .contains('participants', [userId])
+      .order('last_message_time', { ascending: false });
 
-    const querySnapshot = await getDocs(q);
-    const deletePromises = [];
-
-    querySnapshot.forEach((doc) => {
-      deletePromises.push(deleteDoc(doc.ref));
-    });
-
-    await Promise.all(deletePromises);
-
-    // Update chat to reset last message
-    const chatRef = doc(db, 'chats', chatId);
-    await updateDoc(chatRef, {
-      lastMessage: null,
-      lastMessageTime: null,
-      lastMessageSender: null,
-    });
-
-    return true;
+    if (error) throw error;
+    return data || [];
   } catch (error) {
-    console.error('Error deleting chat messages:', error);
-    throw error;
-  }
-};
-
-// Get message count for a chat
-export const getChatMessageCount = async (chatId) => {
-  try {
-    const q = query(
-      collection(db, 'messages'),
-      where('chatId', '==', chatId)
-    );
-
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.size;
-  } catch (error) {
-    console.error('Error getting message count:', error);
-    throw error;
+    console.error('Error getting user chats:', error);
+    return [];
   }
 };
 
 // User search function
 export const searchUsers = async (searchTerm, currentUserId, limitCount = 20) => {
   try {
-    // This is a simplified search - in production you'd want a more sophisticated search
-    const usersRef = collection(db, 'users');
-    const q = query(usersRef, limit(limitCount));
-    const querySnapshot = await getDocs(q);
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .neq('uid', currentUserId)
+      .or(`display_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`)
+      .limit(limitCount);
 
-    const users = [];
-    querySnapshot.forEach((doc) => {
-      const userData = doc.data();
-      // Simple search by display name or email
-      if (
-        doc.id !== currentUserId &&
-        (userData.displayName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-         userData.email?.toLowerCase().includes(searchTerm.toLowerCase()))
-      ) {
-        users.push({ uid: doc.id, ...userData });
-      }
-    });
-
-    return users;
+    if (error) throw error;
+    return data || [];
   } catch (error) {
     console.error('Error searching users:', error);
-    throw error;
+    return [];
   }
 };

@@ -9,18 +9,35 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  Image,
+  ActivityIndicator,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import { supabase, PROFILE_IMAGES_BUCKET } from '../supabase';
 import { useUser } from './UserContext';
 
 export default function EditProfileScreen({ navigation }) {
   const { userProfile, updateProfile } = useUser();
-  const [displayName, setDisplayName] = useState(userProfile?.displayName || '');
-  const [bio, setBio] = useState(userProfile?.bio || '');
-  const [age, setAge] = useState(userProfile?.age || '');
-  const [work, setWork] = useState(userProfile?.work || '');
-  const [school, setSchool] = useState(userProfile?.school || '');
-  const [location, setLocation] = useState(userProfile?.location || '');
+  const [displayName, setDisplayName] = useState('');
+  const [bio, setBio] = useState('');
+  const [age, setAge] = useState('');
+  const [work, setWork] = useState('');
+  const [school, setSchool] = useState('');
+  const [location, setLocation] = useState('');
   const [loading, setLoading] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null);
+
+  // Update state when userProfile loads
+  React.useEffect(() => {
+    if (userProfile) {
+      setDisplayName(userProfile.displayName || '');
+      setBio(userProfile.bio || '');
+      setAge(userProfile.age || '');
+      setWork(userProfile.work || '');
+      setSchool(userProfile.school || '');
+      setLocation(userProfile.location || '');
+    }
+  }, [userProfile]);
 
   const handleSave = async () => {
     if (!displayName.trim()) {
@@ -30,14 +47,25 @@ export default function EditProfileScreen({ navigation }) {
 
     setLoading(true);
     try {
-      await updateProfile({
+      let photoUrl = null;
+      if (selectedImage) {
+        photoUrl = await uploadImage(selectedImage);
+      }
+
+      const updates = {
         displayName: displayName.trim(),
         bio: bio.trim(),
         age: age.trim(),
         work: work.trim(),
         school: school.trim(),
         location: location.trim(),
-      });
+      };
+
+      if (photoUrl) {
+        updates.photos = [photoUrl, ...(userProfile?.photos?.slice(1) || [])];
+      }
+
+      await updateProfile(updates);
 
       Alert.alert('¡Éxito!', 'Perfil actualizado correctamente');
       navigation.goBack();
@@ -48,6 +76,68 @@ export default function EditProfileScreen({ navigation }) {
       setLoading(false);
     }
   };
+
+  const pickImage = async () => {
+    // Request permissions
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permiso denegado', 'Necesitamos acceso a tu galería para seleccionar una foto');
+      return;
+    }
+
+    // Launch image picker
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (!result.canceled) {
+      setSelectedImage(result.assets[0]);
+    }
+  };
+
+  const uploadImage = async (image) => {
+    try {
+      const response = await fetch(image.uri);
+      const blob = await response.blob();
+
+      const filename = `profile_${userProfile.uid}_${Date.now()}.jpg`;
+
+      const { error } = await supabase.storage
+        .from(PROFILE_IMAGES_BUCKET)
+        .upload(filename, blob, {
+          contentType: 'image/jpeg',
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (error) {
+        console.error('Supabase upload error:', error);
+        throw error;
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from(PROFILE_IMAGES_BUCKET)
+        .getPublicUrl(filename);
+
+      return publicUrl;
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      throw error;
+    }
+  };
+
+  // Show loading if userProfile is not loaded yet
+  if (!userProfile) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#ff4458" />
+        <Text style={styles.loadingText}>Cargando perfil...</Text>
+      </View>
+    );
+  }
 
   return (
     <KeyboardAvoidingView
@@ -67,6 +157,21 @@ export default function EditProfileScreen({ navigation }) {
         </View>
 
         <View style={styles.form}>
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Foto de perfil</Text>
+            <TouchableOpacity style={styles.photoContainer} onPress={pickImage}>
+              <Image
+                source={{
+                  uri: selectedImage?.uri || userProfile?.photos?.[0] || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400'
+                }}
+                style={styles.photo}
+              />
+              <View style={styles.photoOverlay}>
+                <Text style={styles.photoText}>Cambiar foto</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Nombre completo *</Text>
             <TextInput
@@ -143,6 +248,17 @@ export default function EditProfileScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#666',
+  },
   container: {
     flexGrow: 1,
     backgroundColor: '#fff',
@@ -195,5 +311,32 @@ const styles = StyleSheet.create({
   textArea: {
     height: 80,
     paddingTop: 12,
+  },
+  photoContainer: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  photo: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    borderWidth: 3,
+    borderColor: '#ff4458',
+  },
+  photoOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 60,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  photoText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

@@ -2,9 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, FlatList, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from './UserContext';
-import { getFriends, getUserChats } from './FriendService';
-import { collection, getDocs, query, where } from 'firebase/firestore';
-import { db } from '../firebase.js';
+import { getUserChats } from './FriendService';
+import { supabase } from '../supabase.js';
 
 const DEFAULT_PROFILE_IMAGE = 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400';
 
@@ -17,45 +16,44 @@ export default function ChatsScreen() {
   useEffect(() => {
     if (!user) return;
 
-    // Load friends
-    const unsubscribeFriends = getFriends(user.uid, async (friendIds) => {
-      if (friendIds.length === 0) {
-        setFriends([]);
-        return;
-      }
-
-      // Load friend details
+    const loadData = async () => {
       try {
-        const friendsData = [];
-        for (const friendId of friendIds) {
-          const usersRef = collection(db, 'users');
-          const q = query(usersRef, where('__name__', '==', friendId));
-          const querySnapshot = await getDocs(q);
+        // Load chats first
+        const chatsData = await getUserChats(user.id);
+        setChats(chatsData);
 
-          querySnapshot.forEach((doc) => {
-            friendsData.push({ uid: doc.id, ...doc.data() });
+        // Get unique friend IDs from chats
+        const friendIds = new Set();
+        chatsData.forEach(chat => {
+          chat.participants.forEach(participant => {
+            if (participant !== user.id) {
+              friendIds.add(participant);
+            }
           });
+        });
+
+        // Load friend details
+        if (friendIds.size > 0) {
+          const { data: friendsData, error } = await supabase
+            .from('users')
+            .select('*')
+            .in('uid', Array.from(friendIds));
+
+          if (!error && friendsData) {
+            setFriends(friendsData);
+          }
         }
-        setFriends(friendsData);
       } catch (error) {
-        console.error('Error loading friends:', error);
+        console.error('Error loading data:', error);
       }
-    });
-
-    // Load chats
-    const unsubscribeChats = getUserChats(user.uid, (chatsData) => {
-      setChats(chatsData);
-    });
-
-    return () => {
-      unsubscribeFriends();
-      unsubscribeChats();
     };
+
+    loadData();
   }, [user]);
 
   const handleChatPress = (friend) => {
     // Create or get existing chat
-    const participants = [user.uid, friend.uid].sort();
+    const participants = [user.id, friend.uid].sort();
     const chatId = participants.join('_');
     navigation.navigate('ChatConversacion', {
       chatId,
@@ -73,11 +71,11 @@ export default function ChatsScreen() {
 
   const renderFriend = ({ item }) => {
     // Find the chat for this friend
-    const chatId = [user.uid, item.uid].sort().join('_');
+    const chatId = [user.id, item.uid].sort().join('_');
     const chat = chats.find(c => c.id === chatId);
 
-    const lastMessage = chat?.lastMessage || 'Toca para chatear';
-    const lastMessageTime = chat?.lastMessageTime?.toDate();
+    const lastMessage = chat?.last_message || 'Toca para chatear';
+    const lastMessageTime = chat?.last_message_time ? new Date(chat.last_message_time) : null;
 
     const formatTime = (date) => {
       if (!date) return '';

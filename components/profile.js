@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, Modal, ActivityIndicator } from 'react-native';
-import { signOut } from 'firebase/auth';
-import { auth } from '../firebase.js';
+import { auth } from '../supabase.js';
 import { useUser } from './UserContext';
 
 export default function ProfileScreen({ navigation }) {
@@ -10,7 +9,10 @@ export default function ProfileScreen({ navigation }) {
 
   const handleLogout = async () => {
     try {
-      await signOut(auth);
+      const { error } = await auth.signOut();
+      if (error) {
+        console.error('Error signing out:', error);
+      }
       // Reset navigation stack and go to Welcome
       navigation.reset({ index: 0, routes: [{ name: 'Welcome' }] });
     } catch (error) {
