@@ -19,14 +19,14 @@ export default function ChatsScreen() {
     const loadData = async () => {
       try {
         // Load chats first
-        const chatsData = await getUserChats(user.id);
+        const chatsData = await getUserChats(user.uid);
         setChats(chatsData);
 
         // Get unique friend IDs from chats
         const friendIds = new Set();
         chatsData.forEach(chat => {
           chat.participants.forEach(participant => {
-            if (participant !== user.id) {
+            if (participant !== user.uid) {
               friendIds.add(participant);
             }
           });
@@ -53,7 +53,7 @@ export default function ChatsScreen() {
 
   const handleChatPress = (friend) => {
     // Create or get existing chat
-    const participants = [user.id, friend.uid].sort();
+    const participants = [user.uid, friend.uid].sort();
     const chatId = participants.join('_');
     navigation.navigate('ChatConversacion', {
       chatId,
@@ -71,7 +71,7 @@ export default function ChatsScreen() {
 
   const renderFriend = ({ item }) => {
     // Find the chat for this friend
-    const chatId = [user.id, item.uid].sort().join('_');
+    const chatId = [user.uid, item.uid].sort().join('_');
     const chat = chats.find(c => c.id === chatId);
 
     const lastMessage = chat?.last_message || 'Toca para chatear';

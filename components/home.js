@@ -40,19 +40,19 @@ export default function TinderSwipeScreen() {
       if (!user) return;
 
       try {
-        const { data, error } = await db.getUsers(1); // Load up to 50 users
+        const { data, error } = await db.getUsers(50); // Load up to 50 users
 
         if (error) {
           throw error;
         }
 
-        console.log('Current user id:', user.id);
+        console.log('Current user id:', user.uid);
         console.log('Users data:', data);
 
         const loadedUsers = [];
         data.forEach((userData) => {
-          console.log('Checking user:', userData.uid, 'vs current:', user.id);
-          if (userData.uid !== user.id && userData.uid) { // Don't show current user
+          console.log('Checking user:', userData.uid, 'vs current:', user.uid);
+          if (userData.uid !== user.uid && userData.uid) { // Don't show current user
             loadedUsers.push(userData);
           }
         });
@@ -93,7 +93,7 @@ export default function TinderSwipeScreen() {
     const currentUser = users[currentIndex];
     if (currentUser && user) {
       try {
-        await sendFriendRequest(user.id, currentUser.uid);
+        await sendFriendRequest(user.uid, currentUser.uid);
         Alert.alert('¡Solicitud enviada!', `Has enviado una solicitud de amistad a ${currentUser.displayName || 'este usuario'}`);
       } catch (error) {
         console.error('Error sending friend request:', error);
@@ -213,7 +213,7 @@ export default function TinderSwipeScreen() {
           <Image
             source={{ uri: currentItem.photos?.[0] || DEFAULT_PROFILE_IMAGE }}
             style={{ width: '100%', height: '100%' }}
-            resizeMode="cover"
+            resizeMode="contain"
           />
 
           {/* NOPE Label */}
@@ -274,7 +274,7 @@ export default function TinderSwipeScreen() {
                 fontSize: 34,
                 fontWeight: '700',
                 color: '#fff',
-              }}>
+              }} numberOfLines={1}>
                 {currentItem.displayName || 'Usuario'}
               </Text>
               {currentItem.age && (
@@ -301,7 +301,7 @@ export default function TinderSwipeScreen() {
                 color: '#fff',
                 marginBottom: 8,
                 lineHeight: 22,
-              }}>
+              }} numberOfLines={3}>
                 {currentItem.bio}
               </Text>
             )}
@@ -309,12 +309,12 @@ export default function TinderSwipeScreen() {
             <View style={{ gap: 6 }}>
               {currentItem.work && (
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Text style={{ fontSize: 16, color: '#fff', opacity: 0.9 }}>💼 {currentItem.work}</Text>
+                  <Text style={{ fontSize: 16, color: '#fff', opacity: 0.9 }} numberOfLines={1}>💼 {currentItem.work}</Text>
                 </View>
               )}
               {currentItem.school && (
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Text style={{ fontSize: 16, color: '#fff', opacity: 0.9 }}>🎓 {currentItem.school}</Text>
+                  <Text style={{ fontSize: 16, color: '#fff', opacity: 0.9 }} numberOfLines={1}>🎓 {currentItem.school}</Text>
                 </View>
               )}
             </View>

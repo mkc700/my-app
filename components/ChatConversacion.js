@@ -21,34 +21,32 @@ export default function ChatConversacion() {
     const initializeChat = async () => {
       try {
         await createChat([user.uid, friendId]);
+        // Load existing messages
+        const messagesData = await getChatMessages(chatId);
+        const messageCountData = await getChatMessageCount(chatId);
+
+        // Convert Supabase messages to GiftedChat format
+        const giftedChatMessages = messagesData.map(msg => ({
+          _id: msg.id,
+          text: msg.text,
+          createdAt: new Date(msg.timestamp),
+          user: {
+            _id: msg.sender_id,
+            name: msg.sender_id === user.uid ? 'Tú' : friendName,
+          },
+        }));
+
+        // Sort messages by timestamp (most recent first for GiftedChat)
+        giftedChatMessages.sort((a, b) => b.createdAt - a.createdAt);
+
+        setMessages(giftedChatMessages);
+        setMessageCount(messageCountData);
       } catch (error) {
         console.error('Error initializing chat:', error);
       }
     };
 
     initializeChat();
-
-    // Load existing messages
-    const unsubscribe = getChatMessages(chatId, (messagesData) => {
-      // Convert Firebase messages to GiftedChat format
-      const giftedChatMessages = messagesData.map(msg => ({
-        _id: msg.id,
-        text: msg.text,
-        createdAt: msg.timestamp?.toDate() || new Date(msg.timestamp),
-        user: {
-          _id: msg.senderId,
-          name: msg.senderId === user.uid ? 'Tú' : friendName,
-        },
-      }));
-
-      // Sort messages by timestamp (most recent first for GiftedChat)
-      giftedChatMessages.sort((a, b) => b.createdAt - a.createdAt);
-
-      setMessages(giftedChatMessages);
-      setMessageCount(giftedChatMessages.length);
-    });
-
-    return unsubscribe;
   }, [user, chatId, friendName, friendId]);
 
   const onSend = useCallback(async (messagesToSend = []) => {

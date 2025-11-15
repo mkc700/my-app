@@ -126,7 +126,7 @@ export const getSentFriendRequests = async (userId) => {
   }
 };
 
-// Chat Functions (simplified)
+// Chat Functions
 export const createChat = async (participants) => {
   try {
     // Sort participants for consistent chat ID
@@ -147,6 +147,9 @@ export const createChat = async (participants) => {
           id: chatId,
           participants: sortedParticipants,
           created_at: new Date().toISOString(),
+          last_message: '',
+          last_message_time: new Date().toISOString(),
+          last_message_sender: '',
         });
 
       if (error) throw error;
@@ -222,6 +225,48 @@ export const getUserChats = async (userId) => {
   } catch (error) {
     console.error('Error getting user chats:', error);
     return [];
+  }
+};
+
+export const deleteChatMessages = async (chatId) => {
+  try {
+    // Delete all messages in the chat
+    const { error: messagesError } = await supabase
+      .from('messages')
+      .delete()
+      .eq('chat_id', chatId);
+
+    if (messagesError) throw messagesError;
+
+    // Reset chat's last message
+    const { error: chatError } = await supabase
+      .from('chats')
+      .update({
+        last_message: '',
+        last_message_time: new Date().toISOString(),
+        last_message_sender: '',
+      })
+      .eq('id', chatId);
+
+    if (chatError) throw chatError;
+  } catch (error) {
+    console.error('Error deleting chat messages:', error);
+    throw error;
+  }
+};
+
+export const getChatMessageCount = async (chatId) => {
+  try {
+    const { count, error } = await supabase
+      .from('messages')
+      .select('*', { count: 'exact', head: true })
+      .eq('chat_id', chatId);
+
+    if (error) throw error;
+    return count || 0;
+  } catch (error) {
+    console.error('Error getting chat message count:', error);
+    return 0;
   }
 };
 

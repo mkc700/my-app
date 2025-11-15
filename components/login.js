@@ -10,9 +10,10 @@ import {
     Platform,
     Alert,
 } from 'react-native';
-import { auth } from '../supabase.js';
+import { useUser } from './UserContext';
 
 export default function LoginScreen({ navigation }) {
+    const { login } = useUser();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
@@ -26,14 +27,9 @@ export default function LoginScreen({ navigation }) {
         setLoading(true);
         try {
             console.log('Intentando login con:', email);
-            const { data, error } = await auth.signIn({ email, password });
+            await login(email, password);
 
-            if (error) {
-                console.error('Error de Supabase:', error);
-                throw error;
-            }
-
-            console.log('Login exitoso:', data);
+            console.log('Login exitoso');
             // No navegamos manualmente, el UserContext debería detectar el cambio
             Alert.alert('¡Éxito!', 'Iniciando sesión...');
 

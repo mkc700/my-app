@@ -29,18 +29,8 @@ export default function RegisterScreen({ navigation }) {
         }
 
         try {
-            const { data, error } = await auth.signUp({ email, password });
-
-            if (error) {
-                throw error;
-            }
-
-            const user = data.user;
-
-            // Create user profile in Supabase
+            // Create user profile
             const userProfile = {
-                uid: user.id,
-                email: user.email,
                 displayName: name,
                 bio: '',
                 age: '',
@@ -49,22 +39,15 @@ export default function RegisterScreen({ navigation }) {
                 location: '',
                 photos: [],
                 interests: [],
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
             };
 
-            const { error: profileError } = await db.setUser(user.id, userProfile);
+            const { data, error } = await auth.signUp({ email, password, ...userProfile });
 
-            if (profileError) {
-                throw profileError;
+            if (error) {
+                throw error;
             }
 
-            Alert.alert('¡Cuenta creada!', 'Bienvenido a Tinder TEC', [
-                {
-                    text: 'Continuar',
-                    onPress: () => navigation.navigate('Welcome')
-                }
-            ]);
+            navigation.navigate('Welcome');
         } catch (error) {
             console.error('Error al registrar:', error);
             let errorMessage = 'Ocurrió un error al crear la cuenta';

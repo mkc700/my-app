@@ -17,56 +17,37 @@ export const UserProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    console.log('UserContext: Setting up auth listener');
-    const { data: { subscription } } = auth.onAuthStateChange((event, session) => {
-      console.log('UserContext: Auth state changed:', event, !!session?.user);
+    const loadUser = async () => {
+      console.log('UserContext: Loading current user');
+      const { user, error } = await auth.getCurrentUser();
 
-      if (session?.user) {
-        console.log('UserContext: User authenticated:', session.user.email);
-        setUser(session.user);
-
-        // Load user profile from Supabase asynchronously
-        db.getUser(session.user.id).then(({ data: profile, error }) => {
-          if (profile && !error) {
-            console.log('UserContext: Profile loaded:', profile.displayName);
-            setUserProfile(profile);
-          } else {
-            console.log('UserContext: Creating default profile');
-            // Create default profile if it doesn't exist
-            const defaultProfile = {
-              uid: session.user.id,
-              email: session.user.email,
-              displayName: '',
-              bio: '',
-              age: '',
-              work: '',
-              school: '',
-              location: '',
-              photos: [],
-              interests: [],
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            };
-
-            db.setUser(session.user.id, defaultProfile).then(() => {
-              setUserProfile(defaultProfile);
-            }).catch(error => {
-              console.error('UserContext: Error creating profile:', error);
-            });
-          }
-        }).catch(error => {
-          console.error('UserContext: Error loading user profile:', error);
-        });
+      if (user && !error) {
+        console.log('UserContext: User loaded:', user.email);
+        setUser(user);
+        setUserProfile(user); // Since user from getCurrentUser includes profile data
       } else {
-        console.log('UserContext: User logged out');
+        console.log('UserContext: No user logged in');
         setUser(null);
         setUserProfile(null);
       }
       setLoading(false);
-    });
+    };
 
-    return () => subscription.unsubscribe();
+    loadUser();
   }, []);
+
+  const login = async (email, password) => {
+    const { data, error } = await auth.signIn({ email, password });
+    if (error) throw error;
+    setUser(data.user);
+    setUserProfile(data.user);
+  };
+
+  const logout = async () => {
+    await auth.signOut();
+    setUser(null);
+    setUserProfile(null);
+  };
 
   const updateProfile = async (updates) => {
     if (!user) return;
@@ -78,7 +59,7 @@ export const UserProvider = ({ children }) => {
         updatedAt: new Date().toISOString(),
       };
 
-      const { error } = await db.updateUser(user.id, updatedProfile);
+      const { error } = await db.updateUser(user.uid, updatedProfile);
 
       if (error) {
         throw error;
@@ -95,6 +76,8 @@ export const UserProvider = ({ children }) => {
     user,
     userProfile,
     loading,
+    login,
+    logout,
     updateProfile,
   };
 

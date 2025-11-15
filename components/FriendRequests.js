@@ -14,6 +14,7 @@ import {
   getPendingFriendRequests,
   acceptFriendRequest,
   rejectFriendRequest,
+  createChat,
 } from './FriendService';
 
 const DEFAULT_PROFILE_IMAGE = 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400';
@@ -29,7 +30,7 @@ export default function FriendRequestsScreen({ navigation }) {
 
     const loadRequests = async () => {
       try {
-        const requestsData = await getPendingFriendRequests(user.id);
+        const requestsData = await getPendingFriendRequests(user.uid);
         setRequests(requestsData);
       } catch (error) {
         console.error('Error loading friend requests:', error);
@@ -48,6 +49,14 @@ export default function FriendRequestsScreen({ navigation }) {
 
     try {
       await acceptFriendRequest(requestId);
+
+      // Find the request to get sender id
+      const request = requests.find(req => req.id === requestId);
+      if (request) {
+        // Create chat between user and sender
+        await createChat([user.uid, request.sender.uid]);
+      }
+
       Alert.alert('¡Éxito!', 'Solicitud de amistad aceptada');
 
       // Remove from local state

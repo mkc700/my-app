@@ -1,4 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import bcrypt from 'bcryptjs';
 
 // Supabase configuration
 const supabaseUrl = 'https://muxdxjxprausaltziyxo.supabase.co';
@@ -9,39 +11,95 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 // Storage bucket names
 export const PROFILE_IMAGES_BUCKET = 'profile-images';
 
-// Auth helpers
+// Custom Auth helpers (using users table)
 export const auth = {
   signIn: async ({ email, password }) => {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    return { data, error };
+    // Query user by email
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email)
+      .single();
+
+    if (error || !user) {
+      return { data: null, error: { message: 'Invalid credentials' } };
+    }
+
+    // Check password
+    const isValid = await bcrypt.compare(password, user.password);
+    if (!isValid) {
+      return { data: null, error: { message: 'Invalid credentials' } };
+    }
+
+    // Store user id in AsyncStorage
+    await AsyncStorage.setItem('userId', user.uid);
+
+    // Return user without password
+    const { password: _, ...userWithoutPassword } = user;
+    return { data: { user: userWithoutPassword }, error: null };
   },
 
-  signUp: async ({ email, password }) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-    });
-    return { data, error };
+  signUp: async ({ email, password, ...userData }) => {
+    // Check if user already exists
+    const { data: existingUser } = await supabase
+      .from('users')
+      .select('uid')
+      .eq('email', email)
+      .single();
+
+    if (existingUser) {
+      return { data: null, error: { message: 'User already exists' } };
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Generate uid
+    const uid = Date.now().toString() + Math.random().toString(36).substr(2, 9);
+
+    // Insert user
+    const { data, error } = await supabase
+      .from('users')
+      .insert({
+        uid,
+        email,
+        password: hashedPassword,
+        ...userData,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      })
+      .select()
+      .single();
+
+    if (error) {
+      return { data: null, error };
+    }
+
+    // Store user id
+    await AsyncStorage.setItem('userId', uid);
+
+    // Return user without password
+    const { password: _, ...userWithoutPassword } = data;
+    return { data: { user: userWithoutPassword }, error: null };
   },
 
   signOut: async () => {
-    const { error } = await supabase.auth.signOut();
-    return { error };
-  },
-
-  onAuthStateChange: (callback) => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(callback);
-    return {
-      data: { subscription },
-      unsubscribe: () => subscription.unsubscribe()
-    };
+    await AsyncStorage.removeItem('userId');
+    return { error: null };
   },
 
   getCurrentUser: async () => {
-    const { data: { user }, error } = await supabase.auth.getUser();
+    const userId = await AsyncStorage.getItem('userId');
+    if (!userId) {
+      return { user: null, error: null };
+    }
+
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('uid, email, displayName, bio, age, work, school, location, photos, interests, createdAt, updatedAt')
+      .eq('uid', userId)
+      .single();
+
     return { user, error };
   },
 };

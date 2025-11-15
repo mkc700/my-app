@@ -1,18 +1,14 @@
 import React, { useState } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, Modal, ActivityIndicator } from 'react-native';
-import { auth } from '../supabase.js';
 import { useUser } from './UserContext';
 
 export default function ProfileScreen({ navigation }) {
   const [modalVisible, setModalVisible] = useState(false);
-  const { user, userProfile, loading } = useUser();
+  const { user, userProfile, loading, logout } = useUser();
 
   const handleLogout = async () => {
     try {
-      const { error } = await auth.signOut();
-      if (error) {
-        console.error('Error signing out:', error);
-      }
+      await logout();
       // Reset navigation stack and go to Welcome
       navigation.reset({ index: 0, routes: [{ name: 'Welcome' }] });
     } catch (error) {
