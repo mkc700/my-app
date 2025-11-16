@@ -3,7 +3,7 @@ import { View, Text, Image, TouchableOpacity, Dimensions, Animated, PanResponder
 import { LinearGradient } from 'expo-linear-gradient';
 import { db } from '../supabase.js';
 import { useUser } from './UserContext';
-import { sendFriendRequest } from './FriendService';
+import { sendFriendRequest, getSentFriendRequests } from './FriendService';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -34,13 +34,27 @@ export default function TinderSwipeScreen() {
     extrapolate: 'clamp',
   });
 
+  // Shuffle array function
+  const shuffleArray = (array) => {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+  };
+
   // Load users from Supabase
   useEffect(() => {
     const loadUsers = async () => {
       if (!user) return;
 
       try {
-        const { data, error } = await db.getUsers(50); // Load up to 50 users
+        // Get sent friend requests to filter out users already requested
+        const sentRequests = await getSentFriendRequests(user.uid);
+        const sentUserIds = new Set(sentRequests.map(req => req.receiver_id));
+
+        const { data, error } = await db.getUsers(50);
 
         if (error) {
           throw error;
@@ -52,13 +66,13 @@ export default function TinderSwipeScreen() {
         const loadedUsers = [];
         data.forEach((userData) => {
           console.log('Checking user:', userData.uid, 'vs current:', user.uid);
-          if (userData.uid !== user.uid && userData.uid) { // Don't show current user
+          if (userData.uid !== user.uid && userData.uid && !sentUserIds.has(userData.uid)) { // Don't show current user or users with pending requests
             loadedUsers.push(userData);
           }
         });
 
         console.log('Loaded users:', loadedUsers);
-        setUsers(loadedUsers);
+        setUsers(shuffleArray(loadedUsers));
       } catch (error) {
         console.error('Error loading users:', error);
         Alert.alert('Error', 'No se pudieron cargar los usuarios');
@@ -70,23 +84,7 @@ export default function TinderSwipeScreen() {
     loadUsers();
   }, [user]);
 
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onPanResponderMove: (_, gesture) => {
-        position.setValue({ x: gesture.dx, y: gesture.dy });
-      },
-      onPanResponderRelease: (_, gesture) => {
-        if (gesture.dx > 120) {
-          swipeRight();
-        } else if (gesture.dx < -120) {
-          swipeLeft();
-        } else {
-          resetPosition();
-        }
-      },
-    })
-  ).current;
+
 
   const swipeRight = async () => {
     // Send friend request to the current user
@@ -129,7 +127,12 @@ export default function TinderSwipeScreen() {
 
   const nextCard = () => {
     position.setValue({ x: 0, y: 0 });
-    setCurrentIndex((currentIndex + 1) % users.length);
+    const newIndex = (currentIndex + 1) % users.length;
+    if (newIndex === 0) {
+      // Shuffle when wrapping around to the beginning
+      setUsers(shuffleArray(users));
+    }
+    setCurrentIndex(newIndex);
   };
 
   const handleUndo = () => {
@@ -149,34 +152,6 @@ export default function TinderSwipeScreen() {
 
   const renderCard = (item, index) => {
     if (index !== currentIndex) {
-      if (index === (currentIndex + 1) % users.length) {
-        return (
-          // --- ESTA ES LA TARJETA "SIGUIENTE" ---
-          <Animated.View
-            key={item.uid}
-            style={{
-              position: 'absolute',
-              width: SCREEN_WIDTH - 32,
-              height: SCREEN_HEIGHT - 200,
-              transform: [{ scale: 0.95 }],
-              zIndex: 1, // <-- 2. AÑADIR zIndex 1
-            }}
-          >
-            <View style={{
-              flex: 1,
-              borderRadius: 20,
-              overflow: 'hidden',
-              backgroundColor: '#f5f5f5',
-            }}>
-              <Image
-                source={{ uri: item.photos?.[0] || DEFAULT_PROFILE_IMAGE }}
-                style={{ width: '100%', height: '100%' }}
-                resizeMode="cover"
-              />
-            </View>
-          </Animated.View>
-        );
-      }
       return null;
     }
 
@@ -195,9 +170,7 @@ export default function TinderSwipeScreen() {
             { translateY: position.y },
             { rotate: rotation },
           ],
-          zIndex: 2, // <-- 3. AÑADIR zIndex 2
         }}
-        {...panResponder.panHandlers}
       >
         <View style={{
           flex: 1,
@@ -344,11 +317,6 @@ export default function TinderSwipeScreen() {
           style={{ width: 40, height: 40 }}
           resizeMode="contain"
         />
-        <View style={{ flexDirection: 'row', gap: 16 }}>
-          <View style={{ width: 40, height: 40, backgroundColor: '#f0f0f0', borderRadius: 20 }} />
-          <View style={{ width: 40, height: 40, backgroundColor: '#f0f0f0', borderRadius: 20 }} />
-          <View style={{ width: 40, height: 40, backgroundColor: '#f0f0f0', borderRadius: 20 }} />
-        </View>
       </View>
 
       {/* Cards Container */}
@@ -378,27 +346,8 @@ export default function TinderSwipeScreen() {
         justifyContent: 'center',
         alignItems: 'center',
         paddingBottom: 40,
-        gap: 16,
+        gap: 20,
       }}>
-        <TouchableOpacity
-          onPress={handleUndo}
-          style={{
-            width: 50,
-            height: 50,
-            borderRadius: 25,
-            backgroundColor: '#fff',
-            justifyContent: 'center',
-            alignItems: 'center',
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.1,
-            shadowRadius: 4,
-            elevation: 3,
-          }}
-        >
-          <Text style={{ fontSize: 24, color: '#ffc629' }}>↺</Text>
-        </TouchableOpacity>
-
         <TouchableOpacity
           onPress={swipeLeft}
           style={{
@@ -419,25 +368,6 @@ export default function TinderSwipeScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity
-          onPress={handleSuperLike}
-          style={{
-            width: 50,
-            height: 50,
-            borderRadius: 25,
-            backgroundColor: '#fff',
-            justifyContent: 'center',
-            alignItems: 'center',
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.1,
-            shadowRadius: 4,
-            elevation: 3,
-          }}
-        >
-          <Text style={{ fontSize: 24, color: '#00d4ff' }}>★</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
           onPress={swipeRight}
           style={{
             width: 60,
@@ -454,24 +384,6 @@ export default function TinderSwipeScreen() {
           }}
         >
           <Text style={{ fontSize: 32, color: '#00eda6' }}>♥</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={{
-            width: 50,
-            height: 50,
-            borderRadius: 25,
-            backgroundColor: '#fff',
-            justifyContent: 'center',
-            alignItems: 'center',
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.1,
-            shadowRadius: 4,
-            elevation: 3,
-          }}
-        >
-          <Text style={{ fontSize: 24, color: '#9b59ff' }}>⚡</Text>
         </TouchableOpacity>
       </View>
     </View>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, Alert } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Text, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { GiftedChat, Send, InputToolbar } from 'react-native-gifted-chat';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { useUser } from './UserContext';
@@ -135,40 +136,46 @@ export default function ChatConversacion() {
   }
 
   return (
-    <View style={styles.container}>
-      <GiftedChat
-        messages={messages}
-        onSend={onSend}
-        user={{
-          _id: user.uid,
-        }}
-        placeholder="Escribe un mensaje..."
-        showAvatarForEveryMessage={false}
-        renderSend={renderSend}
-        renderInputToolbar={renderInputToolbar}
-        messagesContainerStyle={styles.messagesContainer}
-        textInputStyle={styles.textInput}
-        scrollToBottomStyle={styles.scrollToBottom}
-        alwaysShowSend
-        renderUsernameOnMessage={false}
-        // Custom styling
-        textStyle={{
-          right: { color: '#fff' },
-          left: { color: '#333' },
-        }}
-        wrapperStyle={{
-          right: { backgroundColor: '#ff4458' },
-          left: { backgroundColor: '#f0f0f0' },
-        }}
-      />
-    </View>
+    <SafeAreaView style={styles.container} /*edges={['bottom']}*/>
+      <KeyboardAvoidingView
+        behavior="height"
+        style={{ flex: 1 }}
+      >
+        <GiftedChat
+          messages={messages}
+          onSend={onSend}
+          user={{
+            _id: user.uid,
+          }}
+          placeholder="Escribe un mensaje..."
+          showAvatarForEveryMessage={false}
+          renderSend={renderSend}
+          renderInputToolbar={renderInputToolbar}
+          messagesContainerStyle={styles.messagesContainer}
+          textInputStyle={styles.textInput}
+          scrollToBottomStyle={styles.scrollToBottom}
+          alwaysShowSend
+          renderUsernameOnMessage={false}
+          // Custom styling
+          textStyle={{
+            right: { color: '#fff' },
+            left: { color: '#333' },
+          }}
+          wrapperStyle={{
+            right: { backgroundColor: '#ff4458' },
+            left: { backgroundColor: '#f0f0f0' },
+          }}
+        />
+     </KeyboardAvoidingView> 
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+   //backgroundColor: '#fff',
+     backgroundColor: '#c278c2ff',
   },
   sendButton: {
     width: 40,
@@ -197,7 +204,7 @@ const styles = StyleSheet.create({
     borderTopColor: '#e1e2e6',
     borderTopWidth: 1,
     paddingHorizontal: 8,
-    paddingVertical: 8,
+   
   },
   inputPrimary: {
     alignItems: 'center',

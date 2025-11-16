@@ -134,11 +134,11 @@ export const db = {
   },
 
   // Friends operations
-  getUsers: async (limit = 50) => {
+  getUsers: async (limit = 50, offset = 0) => {
     const { data, error } = await supabase
       .from('users')
       .select('*')
-      .limit(limit);
+      .range(offset, offset + limit - 1);
     return { data, error };
   },
 

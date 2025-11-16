@@ -12,6 +12,7 @@ import {
 import { useUser } from './UserContext';
 import {
   getPendingFriendRequests,
+  getSentFriendRequests,
   acceptFriendRequest,
   rejectFriendRequest,
   createChat,
@@ -21,8 +22,10 @@ const DEFAULT_PROFILE_IMAGE = 'https://images.unsplash.com/photo-1472099645785-5
 
 export default function FriendRequestsScreen({ navigation }) {
   const { user } = useUser();
-  const [requests, setRequests] = useState([]);
+  const [receivedRequests, setReceivedRequests] = useState([]);
+  const [sentRequests, setSentRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('received');
   const [processingRequests, setProcessingRequests] = useState(new Set());
 
   useEffect(() => {
@@ -30,8 +33,12 @@ export default function FriendRequestsScreen({ navigation }) {
 
     const loadRequests = async () => {
       try {
-        const requestsData = await getPendingFriendRequests(user.uid);
-        setRequests(requestsData);
+        const [receivedData, sentData] = await Promise.all([
+          getPendingFriendRequests(user.uid),
+          getSentFriendRequests(user.uid),
+        ]);
+        setReceivedRequests(receivedData);
+        setSentRequests(sentData);
       } catch (error) {
         console.error('Error loading friend requests:', error);
       } finally {
@@ -51,7 +58,7 @@ export default function FriendRequestsScreen({ navigation }) {
       await acceptFriendRequest(requestId);
 
       // Find the request to get sender id
-      const request = requests.find(req => req.id === requestId);
+      const request = receivedRequests.find(req => req.id === requestId);
       if (request) {
         // Create chat between user and sender
         await createChat([user.uid, request.sender.uid]);
@@ -60,7 +67,7 @@ export default function FriendRequestsScreen({ navigation }) {
       Alert.alert('¡Éxito!', 'Solicitud de amistad aceptada');
 
       // Remove from local state
-      setRequests(prev => prev.filter(req => req.id !== requestId));
+      setReceivedRequests(prev => prev.filter(req => req.id !== requestId));
     } catch (error) {
       console.error('Error accepting friend request:', error);
       Alert.alert('Error', 'No se pudo aceptar la solicitud');
@@ -83,7 +90,7 @@ export default function FriendRequestsScreen({ navigation }) {
       Alert.alert('Solicitud rechazada', 'La solicitud ha sido rechazada');
 
       // Remove from local state
-      setRequests(prev => prev.filter(req => req.id !== requestId));
+      setReceivedRequests(prev => prev.filter(req => req.id !== requestId));
     } catch (error) {
       console.error('Error rejecting friend request:', error);
       Alert.alert('Error', 'No se pudo rechazar la solicitud');
@@ -96,19 +103,44 @@ export default function FriendRequestsScreen({ navigation }) {
     }
   };
 
+  const handleCancel = async (requestId) => {
+    if (!user) return;
+
+    setProcessingRequests(prev => new Set(prev).add(requestId));
+
+    try {
+      await rejectFriendRequest(requestId);
+      Alert.alert('Solicitud cancelada', 'La solicitud ha sido cancelada');
+
+      // Remove from local state
+      setSentRequests(prev => prev.filter(req => req.id !== requestId));
+    } catch (error) {
+      console.error('Error canceling friend request:', error);
+      Alert.alert('Error', 'No se pudo cancelar la solicitud');
+    } finally {
+      setProcessingRequests(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(requestId);
+        return newSet;
+      });
+    }
+  };
+
   const renderRequest = ({ item }) => {
     const isProcessing = processingRequests.has(item.id);
+    const isReceived = item.receiver_id === user.uid;
+    const person = isReceived ? item.sender : item.receiver;
 
     return (
       <View style={styles.requestCard}>
         <View style={styles.requestContent}>
           <Image
-            source={{ uri: item.sender?.photos?.[0] || DEFAULT_PROFILE_IMAGE }}
+            source={{ uri: person?.photos?.[0] || DEFAULT_PROFILE_IMAGE }}
             style={styles.profileImage}
           />
           <View style={styles.requestInfo}>
             <Text style={styles.senderName}>
-              {item.sender?.displayName || 'Usuario desconocido'}
+              {person?.displayName || 'Usuario desconocido'}
             </Text>
             <Text style={styles.requestTime}>
               {item.created_at ?
@@ -120,25 +152,39 @@ export default function FriendRequestsScreen({ navigation }) {
         </View>
 
         <View style={styles.actionButtons}>
-          <TouchableOpacity
-            style={[styles.rejectButton, isProcessing && styles.disabledButton]}
-            onPress={() => handleReject(item.id)}
-            disabled={isProcessing}
-          >
-            <Text style={styles.rejectButtonText}>
-              {isProcessing ? '...' : 'Rechazar'}
-            </Text>
-          </TouchableOpacity>
+          {isReceived ? (
+            <>
+              <TouchableOpacity
+                style={[styles.rejectButton, isProcessing && styles.disabledButton]}
+                onPress={() => handleReject(item.id)}
+                disabled={isProcessing}
+              >
+                <Text style={styles.rejectButtonText}>
+                  {isProcessing ? '...' : 'Rechazar'}
+                </Text>
+              </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.acceptButton, isProcessing && styles.disabledButton]}
-            onPress={() => handleAccept(item.id)}
-            disabled={isProcessing}
-          >
-            <Text style={styles.acceptButtonText}>
-              {isProcessing ? '...' : 'Aceptar'}
-            </Text>
-          </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.acceptButton, isProcessing && styles.disabledButton]}
+                onPress={() => handleAccept(item.id)}
+                disabled={isProcessing}
+              >
+                <Text style={styles.acceptButtonText}>
+                  {isProcessing ? '...' : 'Aceptar'}
+                </Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <TouchableOpacity
+              style={[styles.cancelButton, isProcessing && styles.disabledButton]}
+              onPress={() => handleCancel(item.id)}
+              disabled={isProcessing}
+            >
+              <Text style={styles.cancelButtonText}>
+                {isProcessing ? '...' : 'Cancelar'}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
     );
@@ -153,25 +199,48 @@ export default function FriendRequestsScreen({ navigation }) {
     );
   }
 
+  const currentRequests = activeTab === 'received' ? receivedRequests : sentRequests;
+  const currentCount = currentRequests.length;
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Solicitudes de Amistad</Text>
-        <Text style={styles.subtitle}>
-          {requests.length} {requests.length === 1 ? 'solicitud pendiente' : 'solicitudes pendientes'}
-        </Text>
+        <View style={styles.tabContainer}>
+          <TouchableOpacity
+            style={[styles.tabButton, activeTab === 'received' && styles.activeTab]}
+            onPress={() => setActiveTab('received')}
+          >
+            <Text style={[styles.tabText, activeTab === 'received' && styles.activeTabText]}>
+              Recibidas ({receivedRequests.length})
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tabButton, activeTab === 'sent' && styles.activeTab]}
+            onPress={() => setActiveTab('sent')}
+          >
+            <Text style={[styles.tabText, activeTab === 'sent' && styles.activeTabText]}>
+              Enviadas ({sentRequests.length})
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
-      {requests.length === 0 ? (
+      {currentCount === 0 ? (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>No tienes solicitudes pendientes</Text>
+          <Text style={styles.emptyText}>
+            {activeTab === 'received' ? 'No tienes solicitudes pendientes' : 'No has enviado solicitudes pendientes'}
+          </Text>
           <Text style={styles.emptySubtext}>
-            Las solicitudes aparecerán aquí cuando otros usuarios te envíen solicitudes de amistad
+            {activeTab === 'received'
+              ? 'Las solicitudes aparecerán aquí cuando otros usuarios te envíen solicitudes de amistad'
+              : 'Las solicitudes que envíes aparecerán aquí hasta que sean aceptadas o rechazadas'
+            }
           </Text>
         </View>
       ) : (
         <FlatList
-          data={requests}
+          data={currentRequests}
           renderItem={renderRequest}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContainer}
@@ -279,6 +348,41 @@ const styles = StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.6,
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    marginTop: 8,
+  },
+  tabButton: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderRadius: 8,
+    marginHorizontal: 4,
+    backgroundColor: '#f0f0f0',
+  },
+  activeTab: {
+    backgroundColor: '#ff4458',
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
+  },
+  activeTabText: {
+    color: '#fff',
+  },
+  cancelButton: {
+    flex: 1,
+    backgroundColor: '#ff6b6b',
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 16,
   },
   loadingText: {
     marginTop: 16,

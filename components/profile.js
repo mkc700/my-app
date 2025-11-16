@@ -75,17 +75,28 @@ export default function ProfileScreen({ navigation }) {
         <Text style={styles.buttonTextSecondary}>Configuración</Text>
       </TouchableOpacity>
 
-      <Modal animationType="slide" transparent={true} visible={modalVisible} onRequestClose={() => setModalVisible(false)}>
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}
+      >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Configuración</Text>
 
-            <TouchableOpacity style={styles.modalButton} onPress={handleLogout}>
-              <Text style={[styles.buttonText, { color: '#ff4458' }]}>Cerrar sesión</Text>
+            <TouchableOpacity
+              style={[styles.modalButton, styles.logoutButton]}
+              onPress={handleLogout}
+            >
+              <Text style={styles.logoutButtonText}>Cerrar sesión</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={[styles.modalButton, { marginTop: 8 }]} onPress={() => setModalVisible(false)}>
-              <Text style={styles.buttonText}>Cancelar</Text>
+            <TouchableOpacity
+              style={[styles.modalButton, styles.cancelButton]}
+              onPress={() => setModalVisible(false)}
+            >
+              <Text style={styles.cancelButtonText}>Cancelar</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -106,8 +117,12 @@ const styles = StyleSheet.create({
   buttonText: { color: '#fff', fontWeight: '700' },
   buttonSecondary: { backgroundColor: '#f2f3f6', padding: 12, borderRadius: 10, alignItems: 'center' },
   buttonTextSecondary: { color: '#333', fontWeight: '700' },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
-  modalContent: { width: '85%', backgroundColor: '#fff', borderRadius: 12, padding: 18 },
-  modalTitle: { fontSize: 18, fontWeight: '700', marginBottom: 12 },
-  modalButton: { padding: 12, borderRadius: 8, backgroundColor: '#f2f3f6', alignItems: 'center' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  modalContent: { width: '90%', maxWidth: 400, backgroundColor: '#fff', borderRadius: 16, padding: 24, elevation: 10 },
+  modalTitle: { fontSize: 20, fontWeight: '700', marginBottom: 20, textAlign: 'center', color: '#333' },
+  modalButton: { padding: 14, borderRadius: 10, alignItems: 'center', marginVertical: 6 },
+  logoutButton: { backgroundColor: '#ff4458' },
+  logoutButtonText: { color: '#fff', fontWeight: '600', fontSize: 16 },
+  cancelButton: { backgroundColor: '#f0f0f0', borderWidth: 1, borderColor: '#ddd' },
+  cancelButtonText: { color: '#333', fontWeight: '600', fontSize: 16 },
 });
