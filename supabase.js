@@ -1,12 +1,20 @@
 import { createClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import bcrypt from 'bcryptjs';
+import Constants from 'expo-constants';
 
-// Supabase configuration
-const supabaseUrl = 'https://muxdxjxprausaltziyxo.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im11eGR4anhwcmF1c2FsdHppeXhvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMxNTI1MDYsImV4cCI6MjA3ODcyODUwNn0.4nFyeS0k0E61al8xS1UmWxWlDgkhgmr8cRZInCTEJ38'
+// Read config from Expo constants (app.config.js extra) or process.env as fallback
+const extra = (Constants.expoConfig && Constants.expoConfig.extra) || (Constants.manifest && Constants.manifest.extra) || process.env || {};
+
+const supabaseUrl = extra.supabaseUrl || extra.SUPABASE_URL || extra.EXPO_PUBLIC_SUPABASE_URL || extra.REACT_APP_SUPABASE_URL;
+const supabaseAnonKey = extra.supabaseAnonKey || extra.SUPABASE_ANON_KEY || extra.EXPO_PUBLIC_SUPABASE_ANON_KEY || extra.REACT_APP_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.warn('Supabase keys are missing. Ensure you set them in app.config.js extra (via .env) or as build-time env vars.');
+}
+
 // Initialize Supabase client
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl || '', supabaseAnonKey || '');
 
 // Storage bucket names
 export const PROFILE_IMAGES_BUCKET = 'profile-images';

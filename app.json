@@ -24,6 +24,20 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "495084b8-db15-4fb6-9397-a87ad8480130"
+      },
+      "supabaseUrl": "https://muxdxjxprausaltziyxo.supabase.co",
+      "supabaseAnonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im11eGR4anhwcmF1c2FsdHppeXhvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMxNTI1MDYsImV4cCI6MjA3ODcyODUwNn0.4nFyeS0k0E61al8xS1UmWxWlDgkhgmr8cRZInCTEJ38"
+    },
+    "owner": "michaelli387",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/495084b8-db15-4fb6-9397-a87ad8480130"
     }
   }
 }

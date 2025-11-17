@@ -11,16 +11,18 @@ import { useRoute } from '@react-navigation/native';
 
 export default function ChatPerfil() {
   const route = useRoute();
-  const { name } = route.params;
+  const { name, photos = [], bio = '', carrera = 'No especificada', semestre = 'N/A' } = route.params;
+  const profileImage = photos && photos.length > 0 ? photos[0] : 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400';
 
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
         <Image
-          source={{ uri: 'https://via.placeholder.com/150' }}
+          source={{ uri: profileImage }}
           style={styles.profileImage}
         />
         <Text style={styles.name}>{name}</Text>
+        {bio && <Text style={styles.bio}>{bio}</Text>}
       </View>
 
       <View style={styles.section}>
@@ -47,12 +49,12 @@ export default function ChatPerfil() {
         
         <View style={styles.infoItem}>
           <Text style={styles.infoLabel}>Carrera</Text>
-          <Text style={styles.infoValue}>Ingeniería en Sistemas</Text>
+          <Text style={styles.infoValue}>{carrera}</Text>
         </View>
 
         <View style={styles.infoItem}>
           <Text style={styles.infoLabel}>Semestre</Text>
-          <Text style={styles.infoValue}>6to</Text>
+          <Text style={styles.infoValue}>{semestre}</Text>
         </View>
 
         <View style={styles.infoItem}>
@@ -89,6 +91,12 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '600',
     color: '#333',
+  },
+  bio: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 8,
+    fontStyle: 'italic',
   },
   section: {
     padding: 16,

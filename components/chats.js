@@ -65,7 +65,11 @@ export default function ChatsScreen() {
   const handleProfilePress = (friend) => {
     navigation.navigate('ChatPerfil', {
       userId: friend.uid,
-      name: friend.displayName || 'Usuario'
+      name: friend.displayName || 'Usuario',
+      photos: friend.photos || [],
+      bio: friend.bio || '',
+      carrera: friend.carrera || 'No especificada',
+      semestre: friend.semestre || 'N/A'
     });
   };
 
