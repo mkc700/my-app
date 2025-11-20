@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, Image, TouchableOpacity, Dimensions, Animated, PanResponder, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, Image, TouchableOpacity, Dimensions, Animated, PanResponder, Alert, ActivityIndicator, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { db } from '../supabase.js';
 import { useUser } from './UserContext';
@@ -299,93 +299,113 @@ export default function TinderSwipeScreen() {
   };
 
   return (
-    <View style={{
-      flex: 1,
-      backgroundColor: '#fff',
-    }}>
-      {/* Header */}
-      <View style={{
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingTop: 50,
-        paddingBottom: 16,
-      }}>
-        <Image
-          source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/74/Tinder_Logomark_2020.svg/512px-Tinder_Logomark_2020.svg.png' }}
-          style={{ width: 40, height: 40 }}
-          resizeMode="contain"
-        />
-      </View>
+    <LinearGradient colors={['#ff5f6d', '#ffc371']} style={styles.gradient}>
+      <View style={styles.screenContainer}>
+        {/* Header */}
+        <View style={styles.header}>
+          <Image
+            source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/74/Tinder_Logomark_2020.svg/512px-Tinder_Logomark_2020.svg.png' }}
+            style={styles.headerLogo}
+            resizeMode="contain"
+          />
+          <View style={styles.headerBadge}>
+            <Text style={styles.headerBadgeText}>Tinder TEC</Text>
+          </View>
+        </View>
 
-      {/* Cards Container */}
-      <View style={{
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingHorizontal: 16,
-      }}>
-        {loading ? (
-          <ActivityIndicator size="large" color="#ff4458" />
-        ) : users.length === 0 ? (
-          <Text style={{ fontSize: 18, color: '#666', textAlign: 'center' }}>
-            No hay usuarios disponibles en este momento
-          </Text>
-        ) : (
-          /* El mapeo simple funciona ahora porque el zIndex
-            controla el apilamiento, no el orden de renderizado.
-          */
-          users.map((item, index) => renderCard(item, index))
-        )}
-      </View>
+        {/* Cards Container */}
+        <View style={styles.cardsContainer}>
+          {loading ? (
+            <ActivityIndicator size="large" color="#fff" />
+          ) : users.length === 0 ? (
+            <Text style={styles.emptyText}>
+              No hay usuarios disponibles en este momento
+            </Text>
+          ) : (
+            users.map((item, index) => renderCard(item, index))
+          )}
+        </View>
 
-      {/* Action Buttons */}
-      <View style={{
-        flexDirection: 'row',
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingBottom: 40,
-        gap: 20,
-      }}>
-        <TouchableOpacity
-          onPress={swipeLeft}
-          style={{
-            width: 60,
-            height: 60,
-            borderRadius: 30,
-            backgroundColor: '#fff',
-            justifyContent: 'center',
-            alignItems: 'center',
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.1,
-            shadowRadius: 4,
-            elevation: 3,
-          }}
-        >
-          <Text style={{ fontSize: 32, color: '#ff006f' }}>✕</Text>
-        </TouchableOpacity>
+        {/* Action Buttons */}
+        <View style={styles.actionBar}>
+          <TouchableOpacity onPress={swipeLeft} style={styles.actionButton}>
+            <Text style={[styles.actionButtonText, { color: '#ff006f' }]}>✕</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          onPress={swipeRight}
-          style={{
-            width: 60,
-            height: 60,
-            borderRadius: 30,
-            backgroundColor: '#fff',
-            justifyContent: 'center',
-            alignItems: 'center',
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.1,
-            shadowRadius: 4,
-            elevation: 3,
-          }}
-        >
-          <Text style={{ fontSize: 32, color: '#00eda6' }}>♥</Text>
-        </TouchableOpacity>
+          <TouchableOpacity onPress={swipeRight} style={styles.actionButton}>
+            <Text style={[styles.actionButtonText, { color: '#00eda6' }]}>♥</Text>
+          </TouchableOpacity>
+        </View>
       </View>
-    </View>
+    </LinearGradient>
   );
 }
+
+const styles = StyleSheet.create({
+  gradient: {
+    flex: 1,
+  },
+  screenContainer: {
+    flex: 1,
+    paddingTop: 50,
+    paddingHorizontal: 16,
+    paddingBottom: 30,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  headerLogo: {
+    width: 42,
+    height: 42,
+  },
+  headerBadge: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.4)',
+    backgroundColor: 'rgba(255,255,255,0.15)',
+  },
+  headerBadgeText: {
+    color: '#fff',
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  cardsContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyText: {
+    fontSize: 18,
+    color: '#ffeef3',
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  actionBar: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 20,
+  },
+  actionButton: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(255,255,255,0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+  },
+  actionButtonText: {
+    fontSize: 32,
+    fontWeight: '700',
+  },
+});

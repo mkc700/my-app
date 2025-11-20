@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, FlatList, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from './UserContext';
 import { getUserChats } from './FriendService';
@@ -156,46 +157,55 @@ export default function ChatsScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Chats</Text>
-      {friends.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>No tienes amigos aún</Text>
-          <Text style={styles.emptySubtext}>
-            Ve al inicio y desliza a la derecha en perfiles que te gusten para enviar solicitudes de amistad
-          </Text>
-        </View>
-      ) : (
-        <FlatList
-          data={friends}
-          keyExtractor={(item) => item.uid}
-          renderItem={renderFriend}
-          showsVerticalScrollIndicator={false}
-        />
-      )}
-    </View>
+    <LinearGradient colors={['#ff5f6d', '#ffc371']} style={styles.gradient}>
+      <View style={styles.container}>
+        <Text style={styles.title}>Chats</Text>
+        {friends.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>No tienes amigos aún</Text>
+            <Text style={styles.emptySubtext}>
+              Ve al inicio y desliza a la derecha en perfiles que te gusten para enviar solicitudes de amistad
+            </Text>
+          </View>
+        ) : (
+          <FlatList
+            data={friends}
+            keyExtractor={(item) => item.uid}
+            renderItem={renderFriend}
+            showsVerticalScrollIndicator={false}
+          />
+        )}
+      </View>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
+  gradient: {
+    flex: 1,
+  },
   container: { 
     flex: 1, 
-    backgroundColor: '#fff', 
-    padding: 16 
+    paddingTop: 50,
+    paddingHorizontal: 18,
+    paddingBottom: 24,
   },
   title: { 
-    fontSize: 22, 
+    fontSize: 26, 
     fontWeight: '700', 
-    marginBottom: 12, 
-    color: '#333' 
+    marginBottom: 16, 
+    color: '#fff',
+    letterSpacing: 0.4,
   },
   chatRow: {
     flexDirection: 'row',
     padding: 12,
     borderRadius: 10,
-    backgroundColor: '#f6f7fb',
+    backgroundColor: 'rgba(255,255,255,0.18)',
     marginBottom: 10,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.25)'
   },
   avatarContainer: {
     marginRight: 12,
@@ -215,16 +225,17 @@ const styles = StyleSheet.create({
   },
   name: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
     flex: 1,
+    color: '#fff'
   },
   time: {
     fontSize: 12,
-    color: '#666',
+    color: '#ffeef3',
     marginLeft: 8,
   },
   last: {
-    color: '#666',
+    color: '#ffe6ef',
     marginTop: 4,
     fontSize: 14,
   },
@@ -235,15 +246,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   emptyText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#fff',
     textAlign: 'center',
     marginBottom: 8,
   },
   emptySubtext: {
     fontSize: 16,
-    color: '#666',
+    color: '#ffeef3',
     textAlign: 'center',
     lineHeight: 22,
   },
