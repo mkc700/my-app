@@ -1,7 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import bcrypt from 'bcryptjs';
+import * as Crypto from 'expo-crypto';
 import Constants from 'expo-constants';
+import bcrypt from 'bcryptjs';
 
 // Read config from Expo constants (app.config.js extra) or process.env as fallback
 const extra = (Constants.expoConfig && Constants.expoConfig.extra) || (Constants.manifest && Constants.manifest.extra) || process.env || {};
@@ -19,6 +20,18 @@ export const supabase = createClient(supabaseUrl || '', supabaseAnonKey || '');
 // Storage bucket names
 export const PROFILE_IMAGES_BUCKET = 'profile-images';
 
+const bytesToHex = (bytes) => bytes.map((byte) => byte.toString(16).padStart(2, '0')).join('');
+
+const hashPassword = async (password, salt) =>
+  Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, `${salt}:${password}`);
+
+const createSaltAndHash = async (password) => {
+  const saltBytes = await Crypto.getRandomBytesAsync(16);
+  const salt = bytesToHex([...saltBytes]);
+  const hashedPassword = await hashPassword(password, salt);
+  return { salt, hashedPassword };
+};
+
 // Custom Auth helpers (using users table)
 export const auth = {
   signIn: async ({ email, password }) => {
@@ -34,7 +47,35 @@ export const auth = {
     }
 
     // Check password
-    const isValid = await bcrypt.compare(password, user.password);
+    const passwordString = String(password);
+    let isValid = false;
+
+    if (user.password.includes(':')) {
+      const [salt, storedHash] = user.password.split(':');
+      if (!salt || !storedHash) {
+        return { data: null, error: { message: 'Invalid credentials' } };
+      }
+
+      const computedHash = await hashPassword(passwordString, salt);
+      isValid = computedHash === storedHash;
+    } else {
+      // Legacy bcrypt hash fallback
+      try {
+        isValid = await bcrypt.compare(passwordString, user.password);
+        if (isValid) {
+          const { salt, hashedPassword } = await createSaltAndHash(passwordString);
+          const passwordPayload = `${salt}:${hashedPassword}`;
+          await supabase
+            .from('users')
+            .update({ password: passwordPayload, updatedAt: new Date().toISOString() })
+            .eq('uid', user.uid);
+        }
+      } catch (legacyError) {
+        console.error('Legacy bcrypt compare failed:', legacyError);
+        isValid = false;
+      }
+    }
+
     if (!isValid) {
       return { data: null, error: { message: 'Invalid credentials' } };
     }
@@ -61,7 +102,8 @@ export const auth = {
 
     // Hash password
     const passwordString = String(password);
-    const hashedPassword = await bcrypt.hash(passwordString, 10);
+    const { salt, hashedPassword } = await createSaltAndHash(passwordString);
+    const passwordPayload = `${salt}:${hashedPassword}`;
 
     // Generate uid
     const uid = Date.now().toString() + Math.random().toString(36).substr(2, 9);
@@ -72,7 +114,7 @@ export const auth = {
       .insert({
         uid,
         email,
-        password: hashedPassword,
+        password: passwordPayload,
         ...userData,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),

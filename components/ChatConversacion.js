@@ -7,20 +7,24 @@ import { useUser } from './UserContext';
 import { sendMessage, getChatMessages, createChat, deleteChatMessages, getChatMessageCount } from './FriendService';
 import { supabase } from '../supabase.js';
 
+const DEFAULT_PROFILE_IMAGE = 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400';
+
 export default function ChatConversacion() {
   const route = useRoute();
   const navigation = useNavigation();
   const { user } = useUser();
-  const { chatId, friendName, friendId } = route.params;
+  const { chatId, friendName, friendId, friendAvatar } = route.params;
 
   const [messages, setMessages] = useState([]);
   const [messageCount, setMessageCount] = useState(0);
 
   useEffect(() => {
     if (!user || !chatId) return;
+    const userAvatar = user?.photos?.[0] || DEFAULT_PROFILE_IMAGE;
+    const targetAvatar = friendAvatar || DEFAULT_PROFILE_IMAGE;
 
     // Create chat if it doesn't exist
-    const initializeChat = async () => {
+    const loadMessages = async () => {
       try {
         await createChat([user.uid, friendId]);
         // Load existing messages
@@ -35,6 +39,7 @@ export default function ChatConversacion() {
           user: {
             _id: msg.sender_id,
             name: msg.sender_id === user.uid ? 'Tú' : friendName,
+            avatar: msg.sender_id === user.uid ? userAvatar : targetAvatar,
           },
         }));
 
@@ -48,33 +53,23 @@ export default function ChatConversacion() {
       }
     };
 
-    initializeChat();
+    loadMessages();
 
     // Setup real-time listener for new messages
     const channel = supabase
       .channel(`messages-${chatId}`)
-      .on('postgres_changes', 
-        { event: 'INSERT', schema: 'public', table: 'messages', filter: `chat_id=eq.${chatId}` },
-        (payload) => {
-          const newMessage = {
-            _id: payload.new.id,
-            text: payload.new.text,
-            createdAt: new Date(payload.new.timestamp),
-            user: {
-              _id: payload.new.sender_id,
-              name: payload.new.sender_id === user.uid ? 'Tú' : friendName,
-            },
-          };
-          setMessages(previousMessages => GiftedChat.append(previousMessages, [newMessage]));
-          setMessageCount(prev => prev + 1);
-        }
-      )
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+        filter: `chat_id=eq.${chatId}`,
+      }, loadMessages)
       .subscribe();
 
     return () => {
       channel.unsubscribe();
     };
-  }, [user, chatId, friendName, friendId]);
+  }, [user, chatId, friendName, friendId, friendAvatar]);
 
   const onSend = useCallback(async (messagesToSend = []) => {
     if (!user || messagesToSend.length === 0) return;
@@ -143,6 +138,7 @@ export default function ChatConversacion() {
 
   React.useLayoutEffect(() => {
     navigation.setOptions({
+      headerTitle: friendName || 'Chat',
       headerRight: () => (
         <TouchableOpacity
           onPress={handleDeleteChat}
@@ -155,7 +151,7 @@ export default function ChatConversacion() {
         </TouchableOpacity>
       ),
     });
-  }, [navigation, messageCount]);
+  }, [navigation, messageCount, friendName]);
 
   if (!user) {
     return <View style={styles.container} />;
@@ -168,9 +164,12 @@ export default function ChatConversacion() {
         onSend={onSend}
         user={{
           _id: user.uid,
+          name: 'Tú',
+          avatar: user?.photos?.[0] || DEFAULT_PROFILE_IMAGE,
         }}
         placeholder="Escribe un mensaje..."
-        showAvatarForEveryMessage={false}
+        showAvatarForEveryMessage
+        renderAvatarOnTop
         renderSend={renderSend}
         renderInputToolbar={renderInputToolbar}
         messagesContainerStyle={styles.messagesContainer}

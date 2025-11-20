@@ -49,6 +49,32 @@ export default function ChatsScreen() {
     };
 
     loadData();
+
+    const channel = supabase
+      .channel(`chats-${user.uid}`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'chats',
+        filter: `participants=cs.{"${user.uid}"}`,
+      }, () => loadData())
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'chats',
+        filter: `participants=cs.{"${user.uid}"}`,
+      }, () => loadData())
+      .on('postgres_changes', {
+        event: 'DELETE',
+        schema: 'public',
+        table: 'chats',
+        filter: `participants=cs.{"${user.uid}"}`,
+      }, () => loadData())
+      .subscribe();
+
+    return () => {
+      channel.unsubscribe();
+    };
   }, [user]);
 
   const handleChatPress = (friend) => {
@@ -58,7 +84,8 @@ export default function ChatsScreen() {
     navigation.navigate('ChatConversacion', {
       chatId,
       friendName: friend.displayName || 'Usuario',
-      friendId: friend.uid
+      friendId: friend.uid,
+      friendAvatar: friend.photos?.[0] || DEFAULT_PROFILE_IMAGE,
     });
   };
 

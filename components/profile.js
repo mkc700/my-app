@@ -9,8 +9,8 @@ export default function ProfileScreen({ navigation }) {
   const handleLogout = async () => {
     try {
       await logout();
-      // Reset navigation stack and go to Welcome
-      navigation.reset({ index: 0, routes: [{ name: 'Welcome' }] });
+      // UserContext sets user=null and RoutesContent volverá a mostrar las pantallas de auth.
+      // No necesitamos forzar un reset manual aquí.
     } catch (error) {
       console.error('Error signing out:', error);
     }

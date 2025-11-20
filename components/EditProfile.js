@@ -13,6 +13,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { decode } from 'base64-arraybuffer';
 import { supabase, PROFILE_IMAGES_BUCKET } from '../supabase';
 import { useUser } from './UserContext';
 
@@ -91,6 +92,7 @@ export default function EditProfileScreen({ navigation }) {
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
+      base64: true,
     });
 
     if (!result.canceled) {
@@ -100,17 +102,24 @@ export default function EditProfileScreen({ navigation }) {
 
   const uploadImage = async (image) => {
     try {
-      const response = await fetch(image.uri);
-      const blob = await response.blob();
+      const fileExt = image.fileName?.split('.').pop() || image.uri.split('.').pop() || 'jpg';
+      const filename = `profile_${userProfile.uid}_${Date.now()}.${fileExt}`;
+      const mimeType = image.mimeType || 'image/jpeg';
 
-      const filename = `profile_${userProfile.uid}_${Date.now()}.jpg`;
+      let fileData;
+      if (image.base64) {
+        fileData = decode(image.base64);
+      } else {
+        const response = await fetch(image.uri);
+        fileData = await response.arrayBuffer();
+      }
 
       const { error } = await supabase.storage
         .from(PROFILE_IMAGES_BUCKET)
-        .upload(filename, blob, {
-          contentType: 'image/jpeg',
+        .upload(filename, fileData, {
+          contentType: mimeType,
           cacheControl: '3600',
-          upsert: false
+          upsert: false,
         });
 
       if (error) {
@@ -140,9 +149,7 @@ export default function EditProfileScreen({ navigation }) {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'android' ? 'padding' : 'padding'}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()}>

@@ -10,13 +10,16 @@ import {
     Platform,
     Alert,
 } from 'react-native';
-import { auth, db } from '../supabase.js';
+import { LinearGradient } from 'expo-linear-gradient';
+import { auth } from '../supabase.js';
 
 export default function RegisterScreen({ navigation }) {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirm, setConfirm] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     const handleRegister = async () => {
         if (!name || !email || !password || !confirm) {
@@ -67,121 +70,148 @@ export default function RegisterScreen({ navigation }) {
     };
 
     return (
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'android' ? 'padding' : undefined}>
-            <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-                <View style={styles.brand}>
-                    <View style={styles.logoCircle}>
-                        <Text style={styles.logoHeart}>❤</Text>
+        <LinearGradient colors={['#ff5f6d', '#ffc371']} style={styles.gradient}>
+            <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'android' ? 'padding' : 'padding'}>
+                <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+                    <View style={styles.brand}>
+                        <View style={styles.logoCircle}>
+                            <Text style={styles.logoHeart}>❤</Text>
+                        </View>
+                        <Text style={styles.brandTitle}>Crea tu perfil</Text>
+                        <Text style={styles.subtitle}>Únete a la comunidad Tinder TEC y comparte tu vibra con estudiantes del campus.</Text>
                     </View>
-                    <Text style={styles.brandTitle}>Crear cuenta</Text>
-                </View>
 
-                <Text style={styles.subtitle}>Regístrate para empezar</Text>
+                    <View style={styles.card}>
+                        <Text style={styles.cardTitle}>Información básica</Text>
+                        <TextInput
+                            style={styles.input}
+                            placeholder="Nombre completo"
+                            value={name}
+                            onChangeText={setName}
+                            placeholderTextColor="#c7c7d0"
+                        />
 
-                <View style={styles.card}>
-                    <TextInput
-                        style={styles.input}
-                        placeholder="Nombre completo"
-                        value={name}
-                        onChangeText={setName}
-                        placeholderTextColor="#9aa0a6"
-                    />
+                        <TextInput
+                            style={styles.input}
+                            placeholder="Correo electrónico"
+                            keyboardType="email-address"
+                            autoCapitalize="none"
+                            value={email}
+                            onChangeText={setEmail}
+                            placeholderTextColor="#c7c7d0"
+                        />
 
-                    <TextInput
-                        style={styles.input}
-                        placeholder="Correo electrónico"
-                        keyboardType="email-address"
-                        autoCapitalize="none"
-                        value={email}
-                        onChangeText={setEmail}
-                        placeholderTextColor="#9aa0a6"
-                    />
+                        <View style={styles.passwordInputContainer}>
+                            <TextInput
+                                style={[styles.input, styles.passwordInput]}
+                                placeholder="Contraseña"
+                                secureTextEntry={!showPassword}
+                                value={password}
+                                onChangeText={setPassword}
+                                placeholderTextColor="#c7c7d0"
+                            />
+                            <TouchableOpacity onPress={() => setShowPassword((prev) => !prev)}>
+                                <Text style={styles.toggleText}>{showPassword ? 'Ocultar' : 'Mostrar'}</Text>
+                            </TouchableOpacity>
+                        </View>
 
-                    <TextInput
-                        style={styles.input}
-                        placeholder="Contraseña"
-                        secureTextEntry
-                        value={password}
-                        onChangeText={setPassword}
-                        placeholderTextColor="#9aa0a6"
-                    />
+                        <View style={styles.passwordInputContainer}>
+                            <TextInput
+                                style={[styles.input, styles.passwordInput]}
+                                placeholder="Confirmar contraseña"
+                                secureTextEntry={!showConfirmPassword}
+                                value={confirm}
+                                onChangeText={setConfirm}
+                                placeholderTextColor="#c7c7d0"
+                            />
+                            <TouchableOpacity onPress={() => setShowConfirmPassword((prev) => !prev)}>
+                                <Text style={styles.toggleText}>{showConfirmPassword ? 'Ocultar' : 'Mostrar'}</Text>
+                            </TouchableOpacity>
+                        </View>
 
-                    <TextInput
-                        style={styles.input}
-                        placeholder="Confirmar contraseña"
-                        secureTextEntry
-                        value={confirm}
-                        onChangeText={setConfirm}
-                        placeholderTextColor="#9aa0a6"
-                    />
+                        <Text style={styles.helperText}>Usa al menos 6 caracteres. Puedes actualizar tu perfil después.</Text>
 
-                    <TouchableOpacity style={styles.button} onPress={handleRegister}>
-                        <Text style={styles.buttonText}>Registrarse</Text>
-                    </TouchableOpacity>
+                        <TouchableOpacity style={styles.button} onPress={handleRegister}>
+                            <Text style={styles.buttonText}>Crear cuenta</Text>
+                        </TouchableOpacity>
 
-                    <View style={styles.row}>
-                        <Text style={styles.rowText}>¿Ya tienes una cuenta?</Text>
-                        <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-                            <Text style={styles.link}> Inicia sesión</Text>
+                        <View style={styles.row}>
+                            <Text style={styles.rowText}>¿Ya tienes cuenta?</Text>
+                            <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+                                <Text style={styles.link}> Inicia sesión</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        <TouchableOpacity onPress={() => navigation.navigate('Welcome')}>
+                            <Text style={styles.linkSecondary}>Volver</Text>
                         </TouchableOpacity>
                     </View>
-
-                    <TouchableOpacity onPress={() => navigation.navigate('Welcome')}>
-                        <Text style={styles.linkSecondary}>Volver</Text>
-                    </TouchableOpacity>
-                </View>
-            </ScrollView>
-        </KeyboardAvoidingView>
+                </ScrollView>
+            </KeyboardAvoidingView>
+        </LinearGradient>
     );
 }
 
 const styles = StyleSheet.create({
+    gradient: {
+        flex: 1,
+    },
     container: {
         flexGrow: 1,
         justifyContent: 'center',
         padding: 24,
-        backgroundColor: '#fff',
+        paddingBottom: 48,
     },
     brand: {
         alignItems: 'center',
-        marginBottom: 12,
+        marginBottom: 20,
     },
     logoCircle: {
-        width: 76,
-        height: 76,
-        borderRadius: 38,
-        backgroundColor: '#ff4458',
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        backgroundColor: '#fff',
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: 8,
+        marginBottom: 10,
         shadowColor: '#000',
         shadowOpacity: 0.12,
-        shadowRadius: 6,
-        elevation: 3,
+        shadowRadius: 8,
+        elevation: 4,
     },
     logoHeart: {
-        color: '#fff',
-        fontSize: 30,
-        lineHeight: 30,
+        color: '#ff5f6d',
+        fontSize: 32,
+        lineHeight: 32,
     },
     brandTitle: {
-        fontSize: 20,
-        fontWeight: '700',
-        color: '#333',
+        fontSize: 24,
+        fontWeight: '800',
+        color: '#fff',
     },
     subtitle: {
         textAlign: 'center',
-        color: '#666',
-        marginBottom: 18,
+        color: '#ffeef3',
+        marginTop: 8,
+        marginBottom: 14,
+        lineHeight: 20,
     },
     card: {
-        backgroundColor: '#f8f9fb',
-        padding: 18,
-        borderRadius: 12,
+        backgroundColor: 'rgba(255,255,255,0.2)',
+        padding: 20,
+        borderRadius: 18,
         shadowColor: '#000',
-        shadowOpacity: 0.06,
-        shadowRadius: 8,
-        elevation: 2,
+        shadowOpacity: 0.12,
+        shadowRadius: 10,
+        elevation: 4,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.35)',
+    },
+    cardTitle: {
+        color: '#fff',
+        fontSize: 20,
+        fontWeight: '700',
+        marginBottom: 12,
     },
     input: {
         height: 48,
@@ -190,18 +220,49 @@ const styles = StyleSheet.create({
         paddingHorizontal: 12,
         marginBottom: 12,
         borderWidth: 1,
-        borderColor: '#e6e9ee',
+        borderColor: 'rgba(255,255,255,0.4)',
+    },
+    passwordInputContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.4)',
+        borderRadius: 8,
+        backgroundColor: '#fff',
+        paddingHorizontal: 8,
+        marginBottom: 12,
+        justifyContent: 'space-between',
+    },
+    passwordInput: {
+        flex: 1,
+        borderWidth: 0,
+        marginBottom: 0,
+        paddingHorizontal: 4,
+    },
+    toggleText: {
+        color: '#ff5f6d',
+        fontWeight: '600',
+        paddingHorizontal: 8,
+    },
+    helperText: {
+        color: '#ffeef3',
+        fontSize: 12,
+        marginBottom: 10,
     },
     button: {
-        backgroundColor: '#ff4458',
-        paddingVertical: 12,
-        borderRadius: 10,
+        backgroundColor: '#fff',
+        paddingVertical: 13,
+        borderRadius: 12,
         alignItems: 'center',
         marginTop: 6,
         marginBottom: 8,
+        shadowColor: '#000',
+        shadowOpacity: 0.15,
+        shadowRadius: 6,
+        elevation: 3,
     },
     buttonText: {
-        color: '#fff',
+        color: '#ff4458',
         fontWeight: '700',
         fontSize: 16,
     },
@@ -212,14 +273,14 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     rowText: {
-        color: '#666',
+        color: '#ffeef3',
     },
     link: {
-        color: '#ff4458',
+        color: '#fff',
         fontWeight: '600',
     },
     linkSecondary: {
-        color: '#8a8f96',
+        color: '#ffe0ec',
         textAlign: 'center',
         marginTop: 12,
     },
