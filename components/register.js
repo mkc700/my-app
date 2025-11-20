@@ -40,7 +40,7 @@ export default function RegisterScreen({ navigation }) {
                 photos: [],
                 interests: [],
             };
-
+            
             const { data, error } = await auth.signUp({ email, password, ...userProfile });
 
             if (error) {
@@ -67,9 +67,7 @@ export default function RegisterScreen({ navigation }) {
     };
 
     return (
-        <KeyboardAvoidingView
-            style={{ flex: 1 }}
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'android' ? 'padding' : undefined}>
             <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
                 <View style={styles.brand}>
                     <View style={styles.logoCircle}>

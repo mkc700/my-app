@@ -60,7 +60,8 @@ export const auth = {
     }
 
     // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const passwordString = String(password);
+    const hashedPassword = await bcrypt.hash(passwordString, 10);
 
     // Generate uid
     const uid = Date.now().toString() + Math.random().toString(36).substr(2, 9);
