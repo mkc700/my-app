@@ -17,6 +17,7 @@ import {
   rejectFriendRequest,
   createChat,
 } from './FriendService';
+import { supabase } from '../supabase.js';
 
 const DEFAULT_PROFILE_IMAGE = 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400';
 
@@ -31,22 +32,47 @@ export default function FriendRequestsScreen({ navigation }) {
   useEffect(() => {
     if (!user) return;
 
+    let isMounted = true;
+
     const loadRequests = async () => {
       try {
         const [receivedData, sentData] = await Promise.all([
           getPendingFriendRequests(user.uid),
           getSentFriendRequests(user.uid),
         ]);
+
+        if (!isMounted) return;
         setReceivedRequests(receivedData);
         setSentRequests(sentData);
       } catch (error) {
         console.error('Error loading friend requests:', error);
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
 
     loadRequests();
+
+    const channel = supabase
+      .channel(`friend-requests-${user.uid}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'friend_requests',
+        filter: `receiver_id=eq.${user.uid}`,
+      }, loadRequests)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'friend_requests',
+        filter: `sender_id=eq.${user.uid}`,
+      }, loadRequests)
+      .subscribe();
+
+    return () => {
+      isMounted = false;
+      channel.unsubscribe();
+    };
   }, [user]);
 
   const handleAccept = async (requestId) => {
